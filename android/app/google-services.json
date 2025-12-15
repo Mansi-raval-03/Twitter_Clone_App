@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "520533736138",
+    "project_id": "android-main-activity",
+    "storage_bucket": "android-main-activity.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:520533736138:android:5fe99448fce90e6a801233",
+        "android_client_info": {
+          "package_name": "com.example.twitter_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-qUHP-2ks5OIKHcZqB_vy3lCg5LrgGPk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:520533736138:android:cdb53eab1a8086b7801233",
+        "android_client_info": {
+          "package_name": "com.example.twitter_clone_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-qUHP-2ks5OIKHcZqB_vy3lCg5LrgGPk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
