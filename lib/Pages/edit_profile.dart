@@ -5,11 +5,19 @@ class EditProfilePage extends StatefulWidget {
   final String bio;
   final String profileImageUrl;
 
+  // New optional fields to prefill
+  final String? name;
+  final String? location;
+  final String? website;
+
   const EditProfilePage({
     Key? key,
     required this.username,
     required this.bio,
     required this.profileImageUrl,
+    this.name,
+    this.location,
+    this.website,
   }) : super(key: key);
 
   @override
@@ -28,9 +36,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
     super.initState();
     _usernameController = TextEditingController(text: widget.username);
     _bioController = TextEditingController(text: widget.bio);
-    _nameController = TextEditingController();
-    _locationController = TextEditingController();
-    _websiteController = TextEditingController();
+    _nameController = TextEditingController(text: widget.name ?? '');
+    _locationController = TextEditingController(text: widget.location ?? '');
+    _websiteController = TextEditingController(text: widget.website ?? '');
   }
 
   @override
@@ -58,13 +66,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
         actions: [
           TextButton(
             onPressed: () {
-              // Save profile changes
+              // Return edited values to caller
               Navigator.pop(context, {
-                'username': _usernameController.text,
-                'bio': _bioController.text,
-                'name': _nameController.text,
-                'location': _locationController.text,
-                'website': _websiteController.text,
+                'username': _usernameController.text.trim(),
+                'bio': _bioController.text.trim(),
+                'name': _nameController.text.trim(),
+                'location': _locationController.text.trim(),
+                'website': _websiteController.text.trim(),
+                // If you add image picking, also return 'profileImageUrl'
               });
             },
             child: const Text('Save', style: TextStyle(color: Colors.blue, fontSize: 16)),

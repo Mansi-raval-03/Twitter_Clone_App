@@ -1,8 +1,10 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:twitter_clone_app/tweet/tweet_model.dart';
 import 'package:twitter_clone_app/Model/user_profile_model.dart';
+import 'package:twitter_clone_app/Pages/edit_profile.dart';
 import 'package:twitter_clone_app/tweet/tweet_card.dart';
+import 'package:twitter_clone_app/tweet/tweet_model.dart';
 
 class ProfileScreen extends StatefulWidget {
   final UserProfile user;
@@ -20,33 +22,98 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateMixin {
+class _ProfileScreenState extends State<ProfileScreen>
+    with TickerProviderStateMixin {
   late TabController _tabController;
-  bool isFollowing = false;
+
+  // Add local editable fields (shown on screen)
+  late String _name;
+  late String _username;
+  late String _bio;
+  late String _location;
+  String _website = '';
+  late String _profileImageUrl;
+
+  late List<TweetModel> _tweets;
+  late List<TweetModel> _replies;
+  late List<TweetModel> _media;
+  late List<TweetModel> _likes;
+
+  final _random = Random();
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this); // 4 tabs: Tweets, Replies, Media, Likes
+    _tabController = TabController(length: 4, vsync: this);
+
+    // Initialize from widget.user
+    _name = widget.user.name;
+    _username = widget.user.username;
+    _bio = widget.user.bio;
+    _location = widget.user.location;
+    _profileImageUrl = widget.user.profileImage;
+
+    _tweets = _buildRandomTweets(count: 10, includeImages: true);
+    _replies = _buildRandomTweets(count: 6, asReply: true);
+    _media = _tweets.where((t) => t.imageUrl.isNotEmpty).toList();
+    _likes = _buildRandomTweets(count: 8, includeImages: true);
+  }
+
+  List<TweetModel> _buildRandomTweets({
+    int count = 8,
+    bool includeImages = false,
+    bool asReply = false,
+  }) {
+    final contents = [
+      "Small steps, big results.",
+      "Stay focused, stay humble.",
+      "Building amazing things with Flutter.",
+      "Coffee first, code later ☕",
+      "Growth doesn’t always look like progress.",
+    ];
+
+    final images = [
+      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee",
+      "https://images.unsplash.com/photo-1501785888041-af3ef285b470",
+    ];
+
+    return List.generate(count, (i) {
+      final hasImage = includeImages && _random.nextBool();
+      return TweetModel(
+        id: 'id_$i',
+        uid: 'uid_$i',
+        username: widget.user.name,
+        handle: '@${widget.user.username}',
+        profileImage: widget.user.profileImage,
+        content: asReply
+            ? "Reply: ${contents[_random.nextInt(contents.length)]}"
+            : contents[_random.nextInt(contents.length)],
+        imageUrl: hasImage ? images[_random.nextInt(images.length)] : '',
+        likes: [],
+        comments: [],
+        createdAt: DateTime.now(),
+        isLiked: false,
+      );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final joinedDate = 'Joined March 2020';
-    final isVerified = widget.user.followers > 100; 
+    final isVerified = widget.user.followers > 0;
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: CustomScrollView(
-        slivers: [
+      body: NestedScrollView(
+        headerSliverBuilder: (_, __) => [
+          /// COVER IMAGE
           SliverAppBar(
+            pinned: true,
+            expandedHeight: 300,
             backgroundColor: Colors.white,
             elevation: 0,
-            pinned: true,
-            expandedHeight: 260,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back, color: Colors.black),
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Get.back(),
             ),
             actions: [
               IconButton(
@@ -57,279 +124,290 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
             flexibleSpace: Stack(
               fit: StackFit.expand,
               children: [
-                Positioned.fill(
-                  child: Image.network(
-                    widget.user.coverImage,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(color: Colors.grey.shade300),
-                  ),
+                Image.network(
+                  widget.user.coverImage,
+                  fit: BoxFit.cover,
                 ),
-                Positioned.fill(
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, Colors.black26],
-                      ),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withOpacity(0.15),
+                        Colors.black.withOpacity(0.35),
+                      ],
                     ),
                   ),
                 ),
                 Positioned(
                   bottom: 12,
                   left: 16,
+
                   child: _buildProfilePicture(),
                 ),
               ],
             ),
           ),
 
+          /// PROFILE HEADER
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 56, 16, 0),
-
-              child: Column(
+               
+              padding: EdgeInsets.fromLTRB(16, 20, 16, 0),
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildHeaderRow(),
-                  const SizedBox(height: 12),
-                  _buildProfileHeader(isVerified),
-                  const SizedBox(height: 12),
-                  _buildUserMeta(joinedDate),
-                  const SizedBox(height: 12),
-                  _buildUserStats(),
-                  const SizedBox(height: 12),
+                  Expanded(child: _buildProfileHeader(isVerified)),
+                  _buildEditProfileButton(), // this will now await and update state
                 ],
               ),
             ),
           ),
 
-          SliverAppBar(
-            backgroundColor: Colors.white,
-            pinned: true,
-            elevation: 0,
-            bottom: TabBar(
-              controller: _tabController,
-              labelColor: Colors.black,
-              unselectedLabelColor: Colors.grey,
-              labelStyle: const TextStyle(fontWeight: FontWeight.w700),
-              tabs: const [
-                Tab(text: 'Tweets'),
-                Tab(text: 'Replies'),
-                Tab(text: 'Media'),
-                Tab(text: 'Likes'),
-              ],
+          /// META + STATS
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 8),
+                  _buildUserMeta(),
+                  const SizedBox(height: 8),
+                  _buildUserStats(),
+                ],
+              ),
             ),
           ),
 
-         SliverFillRemaining(
-  child: TabBarView(
-    controller: _tabController,
-    physics: const NeverScrollableScrollPhysics(),
-    children: [
-      _buildTweetsList(),
-      _buildTweetReplies(),
-      _buildMediaGrid(),
-      _buildTweetsList(),
-    ],
-  ),
-),
-
-
+          /// TABS
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _TabBarDelegate(
+              TabBar(
+                controller: _tabController,
+                labelColor: Colors.black,
+                unselectedLabelColor: Colors.grey,
+                indicatorColor: Colors.black,
+                indicatorWeight: 3,
+                tabs: const [
+                  Tab(text: 'Tweets'),
+                  Tab(text: 'Replies'),
+                  Tab(text: 'Media'),
+                  Tab(text: 'Likes'),
+                ],
+              ),
+            ),
+          ),
         ],
+
+        /// TAB CONTENT
+        body: TabBarView(
+          controller: _tabController,
+          children: [
+            _buildTweetList(_tweets),
+            _buildTweetList(_replies),
+            _buildMediaGrid(_media),
+            _buildTweetList(_likes),
+          ],
+        ),
       ),
     );
   }
+
 
   Widget _buildProfilePicture() {
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.white, width: 4),
         shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 4),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 12,
+            color: Colors.black.withOpacity(0.25),
+            blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
       ),
-     child: CircleAvatar(
-  radius: 48,
-  backgroundImage: NetworkImage(widget.user.profileImage),
-  backgroundColor: Colors.grey.shade200,
-),
-
+      child: CircleAvatar(
+        radius: 48,
+        backgroundImage: NetworkImage(_profileImageUrl), // use local state
+      ),
     );
   }
 
- Widget _buildHeaderRow() {
-  return Row(
-    mainAxisAlignment: MainAxisAlignment.end,
-    children: [
-      OutlinedButton(
-        onPressed: () {
-          Get.to(ProfileScreen(user: widget.user, tweets: widget.tweets, replies: widget.replies));
-        },
-        child: const Text('Edit Profile', style: TextStyle(color: Colors.black, fontSize: 16)),
-      ),
-    ],
-  );
-}
-
-
+  /// HEADER
   Widget _buildProfileHeader(bool isVerified) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Text(
-              widget.user.name,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.black),
+            Flexible(
+              child: Text(
+                _name, // from state
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            const SizedBox(width: 6),
-            if (isVerified) const Icon(Icons.verified, color: Colors.lightBlueAccent, size: 20),
+            if (isVerified) ...[
+              const SizedBox(width: 6),
+              const Icon(Icons.verified, size: 20, color: Color(0xFF1D9BF0)),
+            ],
           ],
         ),
         const SizedBox(height: 2),
-        Text(
-          '@${widget.user.username}',
-          style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
-        ),
+        Text('@$_username', style: TextStyle(color: Colors.grey.shade600)),
         const SizedBox(height: 10),
-        Text(
-          widget.user.bio,
-          style: const TextStyle(fontSize: 15, height: 1.35, color: Colors.black),
-        ),
+        Text(_bio, style: const TextStyle(fontSize: 15, height: 1.4)),
       ],
     );
   }
 
-  Widget _buildUserMeta(String joinedDate) {
-    return Wrap(
-      spacing: 16,
-      runSpacing: 8,
+  /// META
+  Widget _buildUserMeta() {
+    return Row(
       children: [
-        if (widget.user.location.isNotEmpty)
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.location_on, size: 16, color: Colors.grey),
-              const SizedBox(width: 4),
-              Text(widget.user.location, style: TextStyle(color: Colors.grey.shade700)),
-            ],
-          ),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
-            const SizedBox(width: 4),
-            Text(joinedDate, style: TextStyle(color: Colors.grey.shade700)),
-          ],
-        ),
+        if (_location.isNotEmpty) ...[
+          const Icon(Icons.location_on, size: 16, color: Colors.grey),
+          const SizedBox(width: 4),
+          Text(_location),
+          const SizedBox(width: 16),
+        ],
+        const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+        const SizedBox(width: 4),
+        const Text('Joined March 2020'),
+        if (_website.isNotEmpty) ...[
+          const SizedBox(width: 16),
+          const Icon(Icons.link, size: 16, color: Colors.grey),
+          const SizedBox(width: 4),
+          Text(_website),
+        ],
       ],
     );
   }
 
+  /// STATS
   Widget _buildUserStats() {
     return Row(
       children: [
-        _buildStatItem("Followers", widget.user.followers.toString()),
-        const SizedBox(width: 16),
-        _buildStatItem("Following", widget.user.following.toString()),
+        _stat('2500000', 'Followers'),
+        const SizedBox(width: 30),
+        _stat('500', 'Following'),
       ],
     );
   }
 
-  Widget _buildStatItem(String label, String count) {
+  Widget _stat(String count, String label) {
     return Row(
       children: [
-        Text(
-          count,
-          style: const TextStyle(fontWeight: FontWeight.w800, color: Colors.black, fontSize: 16),
-        ),
+        Text(count,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(width: 4),
-        Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+        Text(label, style: const TextStyle(color: Colors.grey)),
       ],
     );
   }
 
-  Widget _buildTweetsList() {
-  return ListView.separated(
-    key: const PageStorageKey('tweets'),
-    itemCount: widget.tweets.length,
-    padding: EdgeInsets.zero,
-    separatorBuilder: (_, __) =>
-        Divider(height: 1, color: Colors.grey.shade200),
-    itemBuilder: (context, index) =>
-        TweetCardWidget(tweet: widget.tweets[index]),
-  );
-}
+  Widget _buildEditProfileButton() {
+    return OutlinedButton(
+      onPressed: () async {
+        final result = await Get.to(() => EditProfilePage(
+              username: _username,
+              bio: _bio,
+              profileImageUrl: _profileImageUrl,
+              name: _name,
+              location: _location,
+              website: _website,
+            ));
 
+        if (result is Map) {
+          setState(() {
+            // Only overwrite when provided
+            _username = (result['username'] as String?)?.trim().isNotEmpty == true
+                ? result['username']
+                : _username;
+            _bio = (result['bio'] as String?)?.trim().isNotEmpty == true
+                ? result['bio']
+                : _bio;
+            _name = (result['name'] as String?)?.trim().isNotEmpty == true
+                ? result['name']
+                : _name;
+            _location = (result['location'] as String?)?.trim().isNotEmpty == true
+                ? result['location']
+                : _location;
+            _website = (result['website'] as String?)?.trim() ?? _website;
 
- Widget _buildTweetReplies() {
-  return ListView.separated(
-    key: const PageStorageKey('replies'),
-    itemCount: widget.replies.length,
-    padding: EdgeInsets.zero,
-    separatorBuilder: (_, __) =>
-        Divider(height: 1, color: Colors.grey.shade200),
-    itemBuilder: (context, index) {
-      final reply = widget.replies[index];
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            child: Text(
-              'Replying to ${reply.handle}',
-              style: const TextStyle(color: Colors.lightBlueAccent),
-            ),
-          ),
-          TweetCardWidget(tweet: reply),
-        ],
-      );
-    },
-  );
-}
-
-
-  Widget _buildMediaGrid() {
-  final mediaTweets =
-      widget.tweets.where((t) => t.imageUrl.isNotEmpty).toList();
-
-  if (mediaTweets.isEmpty) {
-    return Center(
-      child: Text('No media yet', style: TextStyle(color: Colors.grey.shade600)),
+            // If later you add image picking and return 'profileImageUrl', handle it here:
+            if ((result['profileImageUrl'] as String?)?.isNotEmpty == true) {
+              _profileImageUrl = result['profileImageUrl'];
+            }
+          });
+        }
+      },
+      style: OutlinedButton.styleFrom(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      ),
+      child: const Text('Edit Profile', style: TextStyle(fontWeight: FontWeight.w700)),
     );
   }
 
-  return GridView.builder(
-    key: const PageStorageKey('media'),
-    padding: const EdgeInsets.all(12),
-    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-      crossAxisCount: 3,
-      mainAxisSpacing: 8,
-      crossAxisSpacing: 8,
-    ),
-    itemCount: mediaTweets.length,
-    itemBuilder: (context, index) {
-      return ClipRRect(
+  Widget _buildTweetList(List<TweetModel> list) {
+    return ListView.separated(
+      padding: const EdgeInsets.only(bottom: 80),
+      itemCount: list.length,
+      separatorBuilder: (_, __) =>
+          Divider(height: 1, color: Colors.grey.shade300),
+      itemBuilder: (_, i) => TweetCardWidget(tweet: list[i]),
+    );
+  }
+
+  Widget _buildMediaGrid(List<TweetModel> media) {
+    return GridView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: media.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 6,
+        mainAxisSpacing: 6,
+      ),
+      itemBuilder: (_, i) => ClipRRect(
         borderRadius: BorderRadius.circular(10),
         child: Image.network(
-          mediaTweets[index].imageUrl,
+          media[i].imageUrl,
           fit: BoxFit.cover,
         ),
-      );
-    },
-  );
-}
-
+      ),
+    );
+  }
 
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
   }
+}
+
+/// STICKY TAB BAR
+class _TabBarDelegate extends SliverPersistentHeaderDelegate {
+  final TabBar tabBar;
+  _TabBarDelegate(this.tabBar);
+
+  @override
+  Widget build(context, shrinkOffset, overlapsContent) {
+    return Container(color: Colors.white, child: tabBar);
+  }
+
+  @override
+  double get maxExtent => tabBar.preferredSize.height;
+
+  @override
+  double get minExtent => tabBar.preferredSize.height;
+
+  @override
+  bool shouldRebuild(_) => false;
 }

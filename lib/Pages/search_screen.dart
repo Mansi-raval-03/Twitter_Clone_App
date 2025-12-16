@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:twitter_clone_app/Drawer/app_drawer.dart';
+import 'package:twitter_clone_app/Pages/settings_screen.dart';
 import 'package:twitter_clone_app/tweet/tweet_card.dart';
 import 'package:twitter_clone_app/tweet/tweet_model.dart';
 
@@ -241,7 +242,14 @@ class _SearchScreenState extends State<SearchScreen>
                   if (!isSearching)
                     IconButton(
                       icon: const Icon(Icons.settings_outlined),
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => SettingsScreen()
+                          ),
+                        );
+                      },
                     ),
                 ],
               ),

@@ -121,7 +121,26 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                           ),
                         ),
                       ),
-                      Icon(Icons.more_horiz, size: 18, color: Colors.grey.shade600,),
+                     IconButton(
+  icon: Icon(
+    Icons.more_horiz,
+    size: 18,
+    color: Colors.grey.shade600,
+  ),
+  onPressed: () {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => Options(
+        tweet: widget.tweet,
+      ),
+    );
+  },
+),
+
+
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -192,18 +211,6 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
     );
   }
 
-   Widget _buildStat(int count, String label) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          _formatNumber(count),
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        Text(label, style: TextStyle(color: Colors.grey[600])),
-      ],
-    );
-  }
 
   Widget _buildAction(
     IconData icon,
@@ -221,6 +228,123 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
           Text(
             count > 0 ? _formatNumber(count) : '',
             style: TextStyle(color: active ? color : Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class Options extends StatelessWidget {
+  final TweetModel tweet;
+
+  const Options({super.key, required this.tweet});
+
+  bool get isMyTweet {
+    // replace with FirebaseAuth uid later
+    const currentUserId = 'uid_1';
+    return tweet.uid == currentUserId;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _optionTile(
+            icon: tweet.isLiked ? Icons.favorite : Icons.favorite_border,
+            label: tweet.isLiked ? 'Unlike' : 'Like',
+            onTap: () {
+              Navigator.pop(context);
+              // TODO: toggle like
+            },
+          ),
+
+          _optionTile(
+            icon: Icons.share_outlined,
+            label: 'Share',
+            onTap: () {
+              Navigator.pop(context);
+            },
+          ),
+
+          _optionTile(
+            icon: Icons.bookmark_border,
+            label: 'Bookmark',
+            onTap: () {
+              Navigator.pop(context);
+            },
+          ),
+
+          if (isMyTweet) const Divider(),
+
+          if (isMyTweet)
+            _optionTile(
+              icon: Icons.delete_outline,
+              label: 'Delete',
+              isDestructive: true,
+              onTap: () {
+                Navigator.pop(context);
+                _confirmDelete(context);
+              },
+            ),
+
+          if (!isMyTweet)
+            _optionTile(
+              icon: Icons.report_outlined,
+              label: 'Delete',
+              isDestructive: true,
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _optionTile({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    bool isDestructive = false,
+  }) {
+    return ListTile(
+      leading: Icon(
+        icon,
+        color: isDestructive ? Colors.red : Colors.black,
+      ),
+      title: Text(
+        label,
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: isDestructive ? Colors.red : Colors.black,
+        ),
+      ),
+      onTap: onTap,
+    );
+  }
+
+  void _confirmDelete(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete Tweet?'),
+        content: const Text('This can’t be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Colors.red),
+            ),
           ),
         ],
       ),

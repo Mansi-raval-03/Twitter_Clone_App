@@ -20,15 +20,15 @@ class MainNavigationScreen extends StatefulWidget {
 final UserProfile currentUser = UserProfile(
     name: "Mansi",
     username: "mansiraval",
-    bio: "Building amazing things with Flutter",
-    location: "USA",
+     bio: "Building amazing things with Flutter.\nI’ve learned that growth doesn’t always look \nlike progress. Sometimes it looks like silence, \npatience, and choosing yourself even when \nit’s uncomfortable.",
+   location: "USA",
     email: "mansiraval@gmail.com",
     profileImage:
         "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQJ3ZD3eQoivQ0xJ4p_ILshOk74FwZ8NS-Kmw&s",
     coverImage:
-        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTdX029ohIUSygq9zirl9fSNBwSLqEOaKEYuw&s",
+        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSpjRkfdV2CW7Sg2sT7e3zRmUyUUIOh5IW0bw&s",
     posts: 150,
-    followers: 2500000,
+    followers: 250,
     following: 500,
     likes: 10000,
   );

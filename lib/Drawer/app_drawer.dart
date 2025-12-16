@@ -14,8 +14,8 @@ class AppDrawer extends StatelessWidget {
 
   final UserProfile currentUser = UserProfile(
     name: "Mansi",
-    username: "mansiraval",
-    bio: "Building amazing things with Flutter",
+    username: "mansiraval",   
+    bio: "Building amazing things with Flutter.I’ve learned that growth doesn’t always look like progress. Sometimes it looks like silence, patience, and choosing yourself even when it’s uncomfortable.",
     location: "USA",
     email: "mansiraval@gmail.com",
     profileImage:

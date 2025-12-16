@@ -42,7 +42,7 @@ class AuthWrapper extends StatelessWidget {
         }
 
         if (snapshot.hasData) {
-          return  MainNavigationScreen(user: null, tweets: [], replies: []);
+          return  MainNavigationScreen(user: null, tweets: [], replies: [],);
         }
 
         return const LoginScreen();
