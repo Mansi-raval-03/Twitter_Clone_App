@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/utils.dart';
 import 'package:twitter_clone_app/tweet/tweet_model.dart';
 import 'package:twitter_clone_app/Model/user_profile_model.dart';
 import 'package:twitter_clone_app/tweet/tweet_card.dart';
@@ -298,7 +297,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
 
   Widget _buildMediaGrid() {
   final mediaTweets =
-      widget.tweets.where((t) => t.imageUrl != null && t.imageUrl!.isNotEmpty).toList();
+      widget.tweets.where((t) => t.imageUrl.isNotEmpty).toList();
 
   if (mediaTweets.isEmpty) {
     return Center(
@@ -319,7 +318,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
       return ClipRRect(
         borderRadius: BorderRadius.circular(10),
         child: Image.network(
-          mediaTweets[index].imageUrl!,
+          mediaTweets[index].imageUrl,
           fit: BoxFit.cover,
         ),
       );
