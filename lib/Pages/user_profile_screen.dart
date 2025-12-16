@@ -11,7 +11,7 @@ class UserProfileScreen extends StatelessWidget {
   final int tweetsCount;
 
   const UserProfileScreen({
-    Key? key,
+    super.key,
     required this.userName,
     required this.userHandle,
     required this.userBio,
@@ -20,7 +20,7 @@ class UserProfileScreen extends StatelessWidget {
     required this.followersCount,
     required this.followingCount,
     required this.tweetsCount,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

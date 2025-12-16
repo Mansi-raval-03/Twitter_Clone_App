@@ -27,10 +27,7 @@ class ChatScreen extends StatelessWidget {
           Expanded(
             child: ListView(
               children: [
-                ListTile(
-                  
-                 
-                  subtitle: Text('Message content here...'),
+                ListTile(subtitle: Text('Message content here...'),
                   trailing: Text('Time'),
                 ),
               ],

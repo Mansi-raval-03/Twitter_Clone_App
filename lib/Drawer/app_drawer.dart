@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:twitter_clone_app/Model/user_profile_model.dart';
 import 'package:twitter_clone_app/Pages/book_marks_screen.dart';
-import 'package:twitter_clone_app/Pages/explore_screen.dart';
 import 'package:twitter_clone_app/Pages/home_screen.dart';
 import 'package:twitter_clone_app/Pages/login_screen.dart';
 import 'package:twitter_clone_app/Pages/messages_screen.dart';
 import 'package:twitter_clone_app/Pages/notification_screen.dart';
 import 'package:twitter_clone_app/Pages/profile_screen.dart';
+import 'package:twitter_clone_app/Pages/search_screen.dart';
 import 'package:twitter_clone_app/Pages/settings_screen.dart';
 
 class AppDrawer extends StatelessWidget {
@@ -51,7 +51,7 @@ class AppDrawer extends StatelessWidget {
           }),
 
           _drawerItem(Icons.explore, 'Explore', () {
-            _navigate(context, const ExploreScreen());
+            _navigate(context, const SearchScreen());
           }),
 
           _drawerItem(Icons.notifications, 'Notifications', () {

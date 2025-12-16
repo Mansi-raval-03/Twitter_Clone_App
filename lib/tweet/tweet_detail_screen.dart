@@ -7,7 +7,7 @@ import 'package:twitter_clone_app/tweet/tweet_model.dart';
 class TweetDetailScreen extends StatefulWidget {
   final TweetModel tweet;
 
-  const TweetDetailScreen({Key? key, required this.tweet}) : super(key: key);
+  const TweetDetailScreen({super.key, required this.tweet});
 
   @override
   State<TweetDetailScreen> createState() => _TweetDetailScreenState();
@@ -19,6 +19,7 @@ class _TweetDetailScreenState extends State<TweetDetailScreen> {
   late int _repliesCount;
   bool _isLiked = false;
   bool _isRetweeted = false;
+  bool isFollowing = false;
 
   @override
   void initState() {
@@ -55,36 +56,64 @@ class _TweetDetailScreenState extends State<TweetDetailScreen> {
                 children: [
                   GestureDetector(
                     onTap: () {
-  debugPrint("Opening profile of ${tweet.username}");
-  Get.to(() => UserProfileScreen(
-    userName: tweet.username,
-    userHandle: tweet.handle.replaceAll('@', ''),
-    userBio: '',
-    profileImageUrl: tweet.profileImage,
-    coverImageUrl: '',
-    followersCount: 0,
-    followingCount: 0,
-    tweetsCount: 0,
-  ));
+                      debugPrint("Opening profile of ${tweet.username}");
+                      Get.to(
+                        () => UserProfileScreen(
+                          userName: tweet.username,
+                          userHandle: tweet.handle.replaceAll('@', ''),
+                          userBio: '',
+                          profileImageUrl: tweet.profileImage,
+                          coverImageUrl: '',
+                          followersCount: 0,
+                          followingCount: 0,
+                          tweetsCount: 0,
+                        ),
+                      );
                     },
 
                     child: CircleAvatar(
                       radius: 28,
                       backgroundImage: tweet.profileImage.isNotEmpty
                           ? NetworkImage(tweet.profileImage)
-                          : NetworkImage('https://www.shutterstock.com/shutterstock/photos/1792956484/display_1500/stock-photo-portrait-of-caucasian-female-in-active-wear-sitting-in-lotus-pose-feeling-zen-and-recreation-during-1792956484.jpg'),
+                          : NetworkImage(
+                              'https://www.shutterstock.com/shutterstock/photos/1792956484/display_1500/stock-photo-portrait-of-caucasian-female-in-active-wear-sitting-in-lotus-pose-feeling-zen-and-recreation-during-1792956484.jpg',
+                            ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(tweet.username,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 15)),
-                      Text(tweet.handle,
-                          style: TextStyle(color: Colors.grey[600])),
+                      Text(
+                        tweet.username,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                      Text(
+                        tweet.handle,
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
                     ],
+                  ),
+                  const SizedBox(width: 130),
+                  OutlinedButton(
+                    onPressed: () {
+                      setState(() {
+                        isFollowing = !isFollowing;
+                      });
+                    },
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                    ),
+                    child: Text(isFollowing ? 'Following' : 'Follow'),
                   ),
                 ],
               ),
@@ -181,8 +210,10 @@ class _TweetDetailScreenState extends State<TweetDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(_formatNumber(count),
-            style: const TextStyle(fontWeight: FontWeight.bold)),
+        Text(
+          _formatNumber(count),
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         Text(label, style: TextStyle(color: Colors.grey[600])),
       ],
     );

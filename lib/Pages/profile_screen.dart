@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:twitter_clone_app/tweet/tweet_model.dart';
 import 'package:twitter_clone_app/Model/user_profile_model.dart';
+import 'package:twitter_clone_app/tweet/tweet_card.dart';
 
 class ProfileScreen extends StatefulWidget {
   final UserProfile user;
@@ -21,7 +22,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
-  bool isFollowing = false;
+  
 
 
 
@@ -85,7 +86,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               labelColor: Colors.black,
               unselectedLabelColor: Colors.grey,
               tabs: const [
-                Tab(text: 'Tweets'),
+                Tab(text: 'Posts'),
                 Tab(text: 'Replies'),
                 Tab(text: 'Likes'),
               ],
@@ -142,25 +143,64 @@ class _ProfileScreenState extends State<ProfileScreen>
       padding: const EdgeInsets.fromLTRB(16, 55, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [Text(widget.user.name,
-    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-
-Text('@${widget.user.username}',
-    style: const TextStyle(fontSize: 14, color: Colors.amber)),
-
-Text(widget.user.bio),
-
-          SizedBox(height: 12),
-         Row(
-  children: [
-    const Icon(Icons.location_on, size: 16, color: Colors.grey),
-    Text(widget.user.location),
-    const SizedBox(width: 16),
-    const Icon(Icons.link, size: 16, color: Colors.blue),
-    Text(widget.user.email),
-  ],
-),
-
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.user.name,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '@${widget.user.username}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      widget.user.bio,
+                      style: const TextStyle(fontSize: 15, height: 1.35),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+            
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.location_on, size: 16, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  Text(widget.user.location),
+                ],
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.link, size: 16, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  Text(widget.user.email),
+                ],
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -168,13 +208,12 @@ Text(widget.user.bio),
 
   Widget _buildUserStats() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       child: Row(
         children: [
           _buildStatItem("Following", widget.user.following.toString()),
-_buildStatItem("Followers", widget.user.followers.toString()),
-_buildStatItem("Likes", widget.user.likes.toString()),
-
+          _buildStatItem("Followers", widget.user.followers.toString()),
+          _buildStatItem("Likes", widget.user.likes.toString()),
         ],
       ),
     );
@@ -182,31 +221,37 @@ _buildStatItem("Likes", widget.user.likes.toString()),
 
   Widget _buildStatItem(String label, String count) {
     return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
           Text(
             count,
             style: const TextStyle(
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w800,
               color: Colors.black,
             ),
           ),
+          const SizedBox(width: 4),
           Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
         ],
       ),
     );
   }
 
- Widget _buildTweetsList() {
-  return ListView.builder(
-    itemCount: widget.tweets.length,
-    padding: EdgeInsets.zero,
-    itemBuilder: (context, index) {
-      return _buildTweetItem(widget.tweets[index] as String);
-    },
-  );
-}
+  Widget _buildTweetsList() {
+    return ListView.separated(
+      itemCount: widget.tweets.length,
+      padding: EdgeInsets.zero,
+      separatorBuilder: (_, __) => Divider(
+        height: 1,
+        thickness: 1,
+        color: Colors.grey.shade200,
+      ),
+      itemBuilder: (context, index) {
+        final tweet = widget.tweets[index];
+        return TweetCardWidget(tweet: tweet);
+      },
+    );
+  }
 
 Widget _buildTweetItem(String content) {
   return Container(
@@ -239,14 +284,33 @@ Widget _buildTweetItem(String content) {
 }
 
 
- Widget _buildTweetReplies() {
-  return ListView.builder(
-    itemCount: widget.replies.length,
-    itemBuilder: (context, index) {
-      return _buildReplyItem(widget.replies[index] as String);
-    },
-  );
-}
+  Widget _buildTweetReplies() {
+    return ListView.separated(
+      itemCount: widget.replies.length,
+      padding: EdgeInsets.zero,
+      separatorBuilder: (_, __) => Divider(
+        height: 1,
+        thickness: 1,
+        color: Colors.grey.shade200,
+      ),
+      itemBuilder: (context, index) {
+        final reply = widget.replies[index];
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                'Replying to ${reply.handle}',
+                style: const TextStyle(color: Colors.lightBlueAccent),
+              ),
+            ),
+            TweetCardWidget(tweet: reply),
+          ],
+        );
+      },
+    );
+  }
 
 Widget _buildReplyItem(String content) {
   return Padding(

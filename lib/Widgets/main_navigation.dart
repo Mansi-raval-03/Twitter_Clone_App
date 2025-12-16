@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:twitter_clone_app/Pages/explore_screen.dart';
 import 'package:twitter_clone_app/Pages/home_screen.dart';
 import 'package:twitter_clone_app/Pages/messages_screen.dart';
 import 'package:twitter_clone_app/Pages/notification_screen.dart';
+import 'package:twitter_clone_app/Pages/search_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -16,7 +16,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   final List<Widget> _screens = const [
     HomeScreen(),
-    ExploreScreen(),
+    SearchScreen(),
     NotificationScreen(),
     MessagesScreen(),
   ];
