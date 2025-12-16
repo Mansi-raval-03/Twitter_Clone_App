@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:twitter_clone_app/Pages/home_screen.dart';
 import 'package:twitter_clone_app/Pages/signup_screen.dart';
+import 'package:twitter_clone_app/Widgets/main_navigation.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -99,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       onPressed: () {
                         if (_formKey.currentState!.validate()) {
-                          Get.to(() => HomeScreen());
+                          Get.to(() => MainNavigationScreen(user: null, tweets: [], replies: []));
                         }
                       },
                       child: const Text(

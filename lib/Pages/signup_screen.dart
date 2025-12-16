@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:twitter_clone_app/Pages/home_screen.dart';
 import 'package:twitter_clone_app/Pages/login_screen.dart';
 import 'package:twitter_clone_app/services/authServices.dart';
+import 'package:twitter_clone_app/Widgets/main_navigation.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -17,7 +17,7 @@ class _SignupScreenState extends State<SignupScreen> {
   String _name = '';
   String _email = '';
   String _password = '';
-
+  String _confirmPassword = '';
   String? nameValidator(String? value) {
     if (value == null || value.trim().isEmpty) {
       return 'Please enter your name';
@@ -42,6 +42,15 @@ class _SignupScreenState extends State<SignupScreen> {
     }
     if (value.length < 6) {
       return 'Password must be at least 6 characters long';
+    }
+    return null;
+  }
+  String? confirmPasswordValidator(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please confirm your password';
+    }
+    if (value != _password) {
+      return 'Passwords do not match';
     }
     return null;
   }
@@ -104,7 +113,20 @@ class _SignupScreenState extends State<SignupScreen> {
                     onChanged: (value) => _password = value,
                   ),
                 ),
+   const SizedBox(height: 20),
 
+                SizedBox(
+                  width: 350,
+                  child: TextFormField(
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Confirm Password',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: confirmPasswordValidator,
+                    onChanged: (value) => _confirmPassword = value,
+                  ),
+                ),
                 const SizedBox(height: 30),
 
                 SizedBox(
@@ -126,7 +148,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         );
 
                         if (isValid && context.mounted) {
-                          Get.offAll(() =>  HomeScreen());
+                          Get.to(() => MainNavigationScreen(user: null, tweets: [], replies: []));
                         } else {
                           Get.offAll(() => const LoginScreen());
                         }
