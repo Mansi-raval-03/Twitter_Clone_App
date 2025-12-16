@@ -2,25 +2,47 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:get/get_core/src/get_main.dart';
 import 'package:twitter_clone_app/Drawer/app_drawer.dart';
+import 'package:twitter_clone_app/Model/user_profile_model.dart';
+import 'package:twitter_clone_app/Pages/profile_screen.dart';
 
 import 'package:twitter_clone_app/Widgets/tweet_composer.dart';
 import 'package:twitter_clone_app/tweet/tweet_card.dart';
 import 'package:twitter_clone_app/tweet/tweet_model.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
-
+   HomeScreen({super.key});
+final UserProfile currentUser = UserProfile(
+    name: "Mansi",
+    username: "mansiraval",
+    bio: "Building amazing things with Flutter",
+    location: "USA",
+    email: "mansiraval@gmail.com",
+    profileImage:
+        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQJ3ZD3eQoivQ0xJ4p_ILshOk74FwZ8NS-Kmw&s",
+    coverImage:
+        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTdX029ohIUSygq9zirl9fSNBwSLqEOaKEYuw&s",
+    posts: 150,
+    followers: 2500000,
+    following: 500,
+    likes: 10000,
+  );
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _currentIndex = 0;
+
+  void _navigate(BuildContext context, Widget page) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => page),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -41,6 +63,17 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.person_2, color: Colors.black),
+            onPressed: () {
+              _navigate(
+              context,
+              ProfileScreen(user: widget.currentUser, tweets: [], replies: []),
+            );
+               },
+          ),
+        ],
       ),
       drawer: AppDrawer(),
       body: IndexedStack(

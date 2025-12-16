@@ -126,7 +126,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         );
 
                         if (isValid && context.mounted) {
-                          Get.offAll(() => const HomeScreen());
+                          Get.offAll(() =>  HomeScreen());
                         } else {
                           Get.offAll(() => const LoginScreen());
                         }

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:get/utils.dart';
 import 'package:twitter_clone_app/tweet/tweet_model.dart';
 import 'package:twitter_clone_app/Model/user_profile_model.dart';
 import 'package:twitter_clone_app/tweet/tweet_card.dart';
@@ -19,64 +21,90 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen>
-    with TickerProviderStateMixin {
+class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateMixin {
   late TabController _tabController;
-  
-
-
+  bool isFollowing = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this); // 4 tabs: Tweets, Replies, Media, Likes
   }
 
   @override
   Widget build(BuildContext context) {
+    final joinedDate = 'Joined March 2020';
+    final isVerified = widget.user.followers > 100; 
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
             backgroundColor: Colors.white,
-            elevation: 1,
+            elevation: 0,
+            pinned: true,
+            expandedHeight: 260,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back, color: Colors.black),
               onPressed: () => Navigator.pop(context),
             ),
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.more_vert, color: Colors.black),
+                onPressed: () {},
+              ),
+            ],
+            flexibleSpace: Stack(
+              fit: StackFit.expand,
               children: [
-                Text(
-                  widget.user.name,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                Positioned.fill(
+                  child: Image.network(
+                    widget.user.coverImage,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(color: Colors.grey.shade300),
                   ),
                 ),
-                Text(
-                  '${widget.user.posts} posts',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                Positioned.fill(
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Colors.transparent, Colors.black26],
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  bottom: 12,
+                  left: 16,
+                  child: _buildProfilePicture(),
                 ),
               ],
             ),
           ),
- 
 
-          /// Main top content
           SliverToBoxAdapter(
-            child: Column(
-              children: [
-                _buildCoverImage(),
-                _buildProfileHeader(),
-                _buildUserStats(),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 56, 16, 0),
+
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeaderRow(),
+                  const SizedBox(height: 12),
+                  _buildProfileHeader(isVerified),
+                  const SizedBox(height: 12),
+                  _buildUserMeta(joinedDate),
+                  const SizedBox(height: 12),
+                  _buildUserStats(),
+                  const SizedBox(height: 12),
+                ],
+              ),
             ),
           ),
 
-          /// Tabs
           SliverAppBar(
             backgroundColor: Colors.white,
             pinned: true,
@@ -85,40 +113,30 @@ class _ProfileScreenState extends State<ProfileScreen>
               controller: _tabController,
               labelColor: Colors.black,
               unselectedLabelColor: Colors.grey,
+              labelStyle: const TextStyle(fontWeight: FontWeight.w700),
               tabs: const [
-                Tab(text: 'Posts'),
+                Tab(text: 'Tweets'),
                 Tab(text: 'Replies'),
+                Tab(text: 'Media'),
                 Tab(text: 'Likes'),
               ],
             ),
           ),
 
-          SliverFillRemaining(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildTweetsList(),
-                _buildTweetReplies(),
-                _buildTweetsList(),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+         SliverFillRemaining(
+  child: TabBarView(
+    controller: _tabController,
+    physics: const NeverScrollableScrollPhysics(),
+    children: [
+      _buildTweetsList(),
+      _buildTweetReplies(),
+      _buildMediaGrid(),
+      _buildTweetsList(),
+    ],
+  ),
+),
 
-  Widget _buildCoverImage() {
-    return SizedBox(
-      height: 200,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned.fill(
-            child: Image.network(widget.user.coverImage, fit: BoxFit.cover),
 
-          ),
-          Positioned(bottom: -40, left: 16, child: _buildProfilePicture()),
         ],
       ),
     );
@@ -129,206 +147,186 @@ class _ProfileScreenState extends State<ProfileScreen>
       decoration: BoxDecoration(
         border: Border.all(color: Colors.white, width: 4),
         shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: CircleAvatar(
-  radius: 50,
+     child: CircleAvatar(
+  radius: 48,
   backgroundImage: NetworkImage(widget.user.profileImage),
+  backgroundColor: Colors.grey.shade200,
 ),
 
     );
   }
 
-  Widget _buildProfileHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 55, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.user.name,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '@${widget.user.username}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      widget.user.bio,
-                      style: const TextStyle(fontSize: 15, height: 1.35),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-            
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 16,
-            runSpacing: 8,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.location_on, size: 16, color: Colors.grey),
-                  const SizedBox(width: 4),
-                  Text(widget.user.location),
-                ],
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.link, size: 16, color: Colors.grey),
-                  const SizedBox(width: 4),
-                  Text(widget.user.email),
-                ],
-              ),
-            ],
-          ),
-        ],
+ Widget _buildHeaderRow() {
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.end,
+    children: [
+      OutlinedButton(
+        onPressed: () {
+          Get.to(ProfileScreen(user: widget.user, tweets: widget.tweets, replies: widget.replies));
+        },
+        child: const Text('Edit Profile', style: TextStyle(color: Colors.black, fontSize: 16)),
       ),
+    ],
+  );
+}
+
+
+  Widget _buildProfileHeader(bool isVerified) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              widget.user.name,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.black),
+            ),
+            const SizedBox(width: 6),
+            if (isVerified) const Icon(Icons.verified, color: Colors.lightBlueAccent, size: 20),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          '@${widget.user.username}',
+          style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          widget.user.bio,
+          style: const TextStyle(fontSize: 15, height: 1.35, color: Colors.black),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUserMeta(String joinedDate) {
+    return Wrap(
+      spacing: 16,
+      runSpacing: 8,
+      children: [
+        if (widget.user.location.isNotEmpty)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.location_on, size: 16, color: Colors.grey),
+              const SizedBox(width: 4),
+              Text(widget.user.location, style: TextStyle(color: Colors.grey.shade700)),
+            ],
+          ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+            const SizedBox(width: 4),
+            Text(joinedDate, style: TextStyle(color: Colors.grey.shade700)),
+          ],
+        ),
+      ],
     );
   }
 
   Widget _buildUserStats() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      child: Row(
-        children: [
-          _buildStatItem("Following", widget.user.following.toString()),
-          _buildStatItem("Followers", widget.user.followers.toString()),
-          _buildStatItem("Likes", widget.user.likes.toString()),
-        ],
-      ),
+    return Row(
+      children: [
+        _buildStatItem("Followers", widget.user.followers.toString()),
+        const SizedBox(width: 16),
+        _buildStatItem("Following", widget.user.following.toString()),
+      ],
     );
   }
 
   Widget _buildStatItem(String label, String count) {
-    return Expanded(
-      child: Row(
-        children: [
-          Text(
-            count,
-            style: const TextStyle(
-              fontWeight: FontWeight.w800,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(width: 4),
-          Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
-        ],
-      ),
+    return Row(
+      children: [
+        Text(
+          count,
+          style: const TextStyle(fontWeight: FontWeight.w800, color: Colors.black, fontSize: 16),
+        ),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+      ],
     );
   }
 
   Widget _buildTweetsList() {
-    return ListView.separated(
-      itemCount: widget.tweets.length,
-      padding: EdgeInsets.zero,
-      separatorBuilder: (_, __) => Divider(
-        height: 1,
-        thickness: 1,
-        color: Colors.grey.shade200,
-      ),
-      itemBuilder: (context, index) {
-        final tweet = widget.tweets[index];
-        return TweetCardWidget(tweet: tweet);
-      },
-    );
-  }
-
-Widget _buildTweetItem(String content) {
-  return Container(
-    padding: const EdgeInsets.all(10),
-    decoration: BoxDecoration(
-      border: Border(bottom: BorderSide(color: Colors.grey[850]!)),
-    ),
-    child: Row(
-      children: [
-        CircleAvatar(
-          backgroundImage: NetworkImage(widget.user.profileImage),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(widget.user.name,
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
-              Text('@${widget.user.username} · 2h',
-                  style: const TextStyle(color: Colors.grey)),
-              const SizedBox(height: 8),
-              Text(content),
-            ],
-          ),
-        ),
-      ],
-    ),
+  return ListView.separated(
+    key: const PageStorageKey('tweets'),
+    itemCount: widget.tweets.length,
+    padding: EdgeInsets.zero,
+    separatorBuilder: (_, __) =>
+        Divider(height: 1, color: Colors.grey.shade200),
+    itemBuilder: (context, index) =>
+        TweetCardWidget(tweet: widget.tweets[index]),
   );
 }
 
 
-  Widget _buildTweetReplies() {
-    return ListView.separated(
-      itemCount: widget.replies.length,
-      padding: EdgeInsets.zero,
-      separatorBuilder: (_, __) => Divider(
-        height: 1,
-        thickness: 1,
-        color: Colors.grey.shade200,
-      ),
-      itemBuilder: (context, index) {
-        final reply = widget.replies[index];
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Text(
-                'Replying to ${reply.handle}',
-                style: const TextStyle(color: Colors.lightBlueAccent),
-              ),
+ Widget _buildTweetReplies() {
+  return ListView.separated(
+    key: const PageStorageKey('replies'),
+    itemCount: widget.replies.length,
+    padding: EdgeInsets.zero,
+    separatorBuilder: (_, __) =>
+        Divider(height: 1, color: Colors.grey.shade200),
+    itemBuilder: (context, index) {
+      final reply = widget.replies[index];
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            child: Text(
+              'Replying to ${reply.handle}',
+              style: const TextStyle(color: Colors.lightBlueAccent),
             ),
-            TweetCardWidget(tweet: reply),
-          ],
-        );
-      },
+          ),
+          TweetCardWidget(tweet: reply),
+        ],
+      );
+    },
+  );
+}
+
+
+  Widget _buildMediaGrid() {
+  final mediaTweets =
+      widget.tweets.where((t) => t.imageUrl != null && t.imageUrl!.isNotEmpty).toList();
+
+  if (mediaTweets.isEmpty) {
+    return Center(
+      child: Text('No media yet', style: TextStyle(color: Colors.grey.shade600)),
     );
   }
 
-Widget _buildReplyItem(String content) {
-  return Padding(
-    padding: const EdgeInsets.all(10),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text("Replying to @princy",
-            style: const TextStyle(color: Colors.blue)),
-        const SizedBox(height: 6),
-        Text(content),
-      ],
+  return GridView.builder(
+    key: const PageStorageKey('media'),
+    padding: const EdgeInsets.all(12),
+    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: 3,
+      mainAxisSpacing: 8,
+      crossAxisSpacing: 8,
     ),
+    itemCount: mediaTweets.length,
+    itemBuilder: (context, index) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Image.network(
+          mediaTweets[index].imageUrl!,
+          fit: BoxFit.cover,
+        ),
+      );
+    },
   );
-
-
-  
 }
+
 
   @override
   void dispose() {

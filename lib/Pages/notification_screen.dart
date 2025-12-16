@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get/utils.dart';
+import 'package:twitter_clone_app/Drawer/app_drawer.dart';
 import 'package:twitter_clone_app/Pages/user_profile_screen.dart';
 
 enum NotificationType {
@@ -114,6 +115,26 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        
+        backgroundColor: Colors.white,
+        elevation: 0.4,
+        centerTitle: false,
+        titleSpacing: 0,
+        toolbarHeight: 56,
+        title: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'Notifications',
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
+      drawer: AppDrawer(),
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(

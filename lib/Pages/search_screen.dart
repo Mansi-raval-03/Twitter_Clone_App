@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:twitter_clone_app/Drawer/app_drawer.dart';
 import 'package:twitter_clone_app/tweet/tweet_card.dart';
 import 'package:twitter_clone_app/tweet/tweet_model.dart';
 
@@ -11,7 +12,8 @@ class SearchScreen extends StatefulWidget {
   State<SearchScreen> createState() => _SearchScreenState();
 }
 
-class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderStateMixin {
+class _SearchScreenState extends State<SearchScreen>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   late TabController _tabController;
   List<String> recentSearches = [];
@@ -22,7 +24,7 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
   List<TweetModel> tweetResults = [];
   bool isLoading = false;
 
-  @override 
+  @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
@@ -64,20 +66,22 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
 
       final tweets = tweetsSnapshot.docs
           .map((doc) => TweetModel.fromDoc(doc))
-          .where((tweet) =>
-              tweet.content.toLowerCase().contains(queryLower) ||
-              tweet.username.toLowerCase().contains(queryLower) ||
-              tweet.handle.toLowerCase().contains(queryLower))
+          .where(
+            (tweet) =>
+                tweet.content.toLowerCase().contains(queryLower) ||
+                tweet.username.toLowerCase().contains(queryLower) ||
+                tweet.handle.toLowerCase().contains(queryLower),
+          )
           .toList();
 
       // Search users - prioritize current user
       List<Map<String, dynamic>> users = [];
-      
+
       // First, add current user if matches
       if (currentUser != null) {
         final currentUsername = currentUser.displayName ?? '';
         final currentHandle = currentUser.email?.split('@')[0] ?? '';
-        
+
         if (currentUsername.toLowerCase().contains(queryLower) ||
             currentHandle.toLowerCase().contains(queryLower) ||
             'mansi'.toLowerCase().contains(queryLower)) {
@@ -100,9 +104,12 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
         final otherUsers = usersSnapshot.docs
             .map((doc) => {'id': doc.id, ...doc.data()})
             .where((user) {
-              final username = (user['username'] ?? '').toString().toLowerCase();
+              final username = (user['username'] ?? '')
+                  .toString()
+                  .toLowerCase();
               final handle = (user['handle'] ?? '').toString().toLowerCase();
-              return (username.contains(queryLower) || handle.contains(queryLower)) &&
+              return (username.contains(queryLower) ||
+                      handle.contains(queryLower)) &&
                   user['id'] != currentUser?.uid;
             })
             .toList();
@@ -150,6 +157,26 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+      
+        backgroundColor: Colors.white,
+        elevation: 0.4,
+        centerTitle: false,
+        titleSpacing: 0,
+        toolbarHeight: 56,
+        title: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'Explore',
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
+      drawer: AppDrawer(),
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
@@ -159,9 +186,7 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               decoration: BoxDecoration(
                 color: Colors.white,
-                border: Border(
-                  bottom: BorderSide(color: Colors.grey.shade200),
-                ),
+                border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
               ),
               child: Row(
                 children: [
@@ -190,15 +215,23 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
                         decoration: InputDecoration(
                           hintText: 'Search Twitter',
                           hintStyle: TextStyle(color: Colors.grey.shade600),
-                          prefixIcon: Icon(Icons.search, color: Colors.grey.shade600),
+                          prefixIcon: Icon(
+                            Icons.search,
+                            color: Colors.grey.shade600,
+                          ),
                           suffixIcon: _searchController.text.isNotEmpty
                               ? IconButton(
-                                  icon: Icon(Icons.clear, color: Colors.grey.shade600),
+                                  icon: Icon(
+                                    Icons.clear,
+                                    color: Colors.grey.shade600,
+                                  ),
                                   onPressed: _clearSearch,
                                 )
                               : null,
                           border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 10,
+                          ),
                         ),
                         style: const TextStyle(fontSize: 15),
                       ),
@@ -241,14 +274,14 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
             Expanded(
               child: isSearching
                   ? (isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : TabBarView(
-                          controller: _tabController,
-                          children: [
-                            _buildUserResults(),
-                            _buildTweetResults(),
-                          ],
-                        ))
+                        ? const Center(child: CircularProgressIndicator())
+                        : TabBarView(
+                            controller: _tabController,
+                            children: [
+                              _buildUserResults(),
+                              _buildTweetResults(),
+                            ],
+                          ))
                   : _buildRecentSearches(),
             ),
           ],
@@ -269,10 +302,7 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
               children: [
                 const Text(
                   'Recent',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
                 ),
                 TextButton(
                   onPressed: () {
@@ -285,22 +315,24 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
               ],
             ),
           ),
-          ...recentSearches.map((search) => ListTile(
-                leading: Icon(Icons.search, color: Colors.grey.shade600),
-                title: Text(search),
-                trailing: IconButton(
-                  icon: Icon(Icons.close, color: Colors.grey.shade600),
-                  onPressed: () {
-                    setState(() {
-                      recentSearches.remove(search);
-                    });
-                  },
-                ),
-                onTap: () {
-                  _searchController.text = search;
-                  _performSearch(search);
+          ...recentSearches.map(
+            (search) => ListTile(
+              leading: Icon(Icons.search, color: Colors.grey.shade600),
+              title: Text(search),
+              trailing: IconButton(
+                icon: Icon(Icons.close, color: Colors.grey.shade600),
+                onPressed: () {
+                  setState(() {
+                    recentSearches.remove(search);
+                  });
                 },
-              )),
+              ),
+              onTap: () {
+                _searchController.text = search;
+                _performSearch(search);
+              },
+            ),
+          ),
         ] else ...[
           Padding(
             padding: const EdgeInsets.all(32.0),
@@ -310,10 +342,7 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
                 const SizedBox(height: 16),
                 Text(
                   'Search for people and tweets',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey.shade600,
-                  ),
+                  style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
                 ),
               ],
             ),
@@ -338,17 +367,19 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
 
     return ListView.separated(
       itemCount: userResults.length,
-      separatorBuilder: (_, __) => Divider(
-        height: 1,
-        color: Colors.grey.shade200,
-      ),
+      separatorBuilder: (_, __) =>
+          Divider(height: 1, color: Colors.grey.shade200),
       itemBuilder: (context, index) {
         final user = userResults[index];
         return ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 8,
+          ),
           leading: CircleAvatar(
             radius: 24,
-            backgroundImage: user['profileImage'] != null && user['profileImage'].isNotEmpty
+            backgroundImage:
+                user['profileImage'] != null && user['profileImage'].isNotEmpty
                 ? NetworkImage(user['profileImage'])
                 : null,
             child: user['profileImage'] == null || user['profileImage'].isEmpty
@@ -396,11 +427,8 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
 
     return ListView.separated(
       itemCount: tweetResults.length,
-      separatorBuilder: (_, __) => Divider(
-        height: 1,
-        thickness: 1,
-        color: Colors.grey.shade200,
-      ),
+      separatorBuilder: (_, __) =>
+          Divider(height: 1, thickness: 1, color: Colors.grey.shade200),
       itemBuilder: (context, index) {
         return TweetCardWidget(tweet: tweetResults[index]);
       },
