@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:twitter_clone_app/tweet/tweet_detail_screen.dart';
 import 'package:twitter_clone_app/tweet/tweet_model.dart';
+import 'package:twitter_clone_app/services/tweet_service.dart';
 
 class TweetCardWidget extends StatefulWidget {
   final TweetModel tweet;
@@ -338,8 +339,26 @@ class Options extends StatelessWidget {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
+              try {
+                await TweetService.deleteTweet(tweet.id);
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Tweet deleted successfully'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              } catch (e) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error deleting tweet: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             },
             child: const Text(
               'Delete',

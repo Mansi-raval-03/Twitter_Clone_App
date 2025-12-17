@@ -29,6 +29,21 @@ class TweetModel {
 
   factory TweetModel.fromDoc(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    
+    // Safely parse comments - handle both string IDs and Map objects
+    List<String> commentsList = [];
+    final commentsData = data['comments'];
+    if (commentsData is List) {
+      for (var item in commentsData) {
+        if (item is String) {
+          commentsList.add(item);
+        } else if (item is Map) {
+          // If it's a Map object (old data format), just count it
+          commentsList.add('comment_${DateTime.now().millisecondsSinceEpoch}');
+        }
+      }
+    }
+    
     return TweetModel(
       id: doc.id,
       uid: data['uid']?.toString() ?? '',
@@ -38,7 +53,7 @@ class TweetModel {
       content: data['content'] ?? '',
       imageUrl: data['imageUrl'] ?? '',
       likes: List<String>.from(data['likes'] ?? []),
-      comments: List<String>.from(data['comments'] ?? []),
+      comments: commentsList,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       isLiked: false,
     );
