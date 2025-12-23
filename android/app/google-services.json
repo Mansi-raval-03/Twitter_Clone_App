@@ -12,7 +12,20 @@
           "package_name": "com.example.twitter_app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "520533736138-jen63e63sj6fabifr9mkqf4icrhvmi1c.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.twitter_app",
+            "certificate_hash": "e3c5f092146b47566fb05f79c6561dfac4c6524b"
+          }
+        },
+        {
+          "client_id": "520533736138-2vpdiait7d9fmbqep79t63bqbmab23iu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyA-qUHP-2ks5OIKHcZqB_vy3lCg5LrgGPk"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "520533736138-2vpdiait7d9fmbqep79t63bqbmab23iu.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     },
@@ -31,7 +49,12 @@
           "package_name": "com.example.twitter_clone_app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "520533736138-2vpdiait7d9fmbqep79t63bqbmab23iu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyA-qUHP-2ks5OIKHcZqB_vy3lCg5LrgGPk"
@@ -39,7 +62,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "520533736138-2vpdiait7d9fmbqep79t63bqbmab23iu.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
