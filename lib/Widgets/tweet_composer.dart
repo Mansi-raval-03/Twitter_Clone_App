@@ -62,8 +62,7 @@ class TweetComposerWidgetState extends State<TweetComposerWidget> {
                 radius: 22,
                 backgroundImage: widget.profileImage.isNotEmpty
                     ? NetworkImage(widget.profileImage)
-                    : const NetworkImage(
-                    'https://www.shutterstock.com/shutterstock/photos/1792956484/display_1500/stock-photo-portrait-of-caucasian-female-in-active-wear-sitting-in-lotus-pose-feeling-zen-and-recreation-during-1792956484.jpg'), // Placeholder image
+                    : null,
                 child: widget.profileImage.isEmpty
                     ? const Icon(Icons.person_outline)
                     : null,

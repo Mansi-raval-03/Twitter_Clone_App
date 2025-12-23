@@ -138,8 +138,11 @@ class SignupController extends GetxController {
       'profileImage': '',
       'coverImage': '',
       'createdAt': FieldValue.serverTimestamp(),
-      'followers': [],
-      'following': [],
+      // store numeric counts so FieldValue.increment works reliably
+      'followers': 0,
+      'following': 0,
+      'posts': 0,
+      'likes': 0,
     });
   }
 

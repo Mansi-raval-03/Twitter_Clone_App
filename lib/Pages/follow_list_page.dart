@@ -83,13 +83,16 @@ class _FollowListPageState extends State<FollowListPage> {
                         },
                       ),
                 onTap: () {
-                  // Optionally navigate to a profile screen -- left for later
-                },
+                  // Navigate to user profile page
+                  Get.toNamed('/profile', arguments: {'userId': uid},
               );
             },
           );
         },
-      ),
+      );
+        },
+      ),  
     );
   }
 }
+ 

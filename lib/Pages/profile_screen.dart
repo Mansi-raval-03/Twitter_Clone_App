@@ -3,17 +3,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:twitter_clone_app/Pages/edit_profile.dart';
 import 'package:twitter_clone_app/Pages/follow_list_page.dart';
 import 'package:twitter_clone_app/Widgets/main_navigation.dart';
 import 'package:twitter_clone_app/tweet/tweet_card.dart';
 import 'package:twitter_clone_app/tweet/tweet_model.dart';
 import 'package:twitter_clone_app/controller/profile_controller.dart';
+import 'package:twitter_clone_app/controller/tab_controller.dart';
 
-/// Profile screen shows a user's profile and their tweets/replies/media/likes
-/// Data is loaded from Firestore in real-time. If `viewedUserId` is null
-/// the currently authenticated user is shown.
 class ProfileScreen extends StatefulWidget {
   final String? viewedUserId; // if null, show current signed-in user
   const ProfileScreen({super.key, this.viewedUserId});
@@ -33,58 +30,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     return _profileCtrl.effectiveUid(viewedUserId: widget.viewedUserId);
   }
 
-  Stream<DocumentSnapshot<Map<String, dynamic>>> _userDocStream(String uid) {
-    return FirebaseFirestore.instance.collection('users').doc(uid).snapshots();
-  }
-
-  Stream<QuerySnapshot<Map<String, dynamic>>> _userTweetsStream(String uid) {
-    return FirebaseFirestore.instance
-        .collection('tweets')
-        .where('uid', isEqualTo: uid)
-        .orderBy('createdAt', descending: true)
-        .snapshots();
-  }
-
-  Stream<QuerySnapshot<Map<String, dynamic>>> _userRepliesStream(String uid) {
-    return FirebaseFirestore.instance
-        .collectionGroup('replies')
-        .where('uid', isEqualTo: uid)
-        .orderBy('createdAt', descending: true)
-        .snapshots();
-  }
-
-  Stream<QuerySnapshot<Map<String, dynamic>>> _userLikedTweetsStream(String uid) {
-    return FirebaseFirestore.instance
-        .collection('tweets')
-        .where('likes', arrayContains: uid)
-        .orderBy('createdAt', descending: true)
-        .snapshots();
-  }
-
-  List<TweetModel> _mapTweetDocsToModels(QuerySnapshot<Map<String, dynamic>> snap) {
-    return snap.docs.map((d) => TweetModel.fromDoc(d)).toList();
-  }
-
-  List<TweetModel> _mapRepliesToTweetModels(QuerySnapshot<Map<String, dynamic>> snap) {
-    return snap.docs.map((d) {
-      final data = d.data();
-      return TweetModel(
-        id: d.id,
-        uid: data['uid']?.toString() ?? '',
-        name: data['username'] ?? 'User',
-        username: data['username'] ?? 'user',
-        handle: data['handle'] ?? '@user',
-        profileImage: data['profileImage'] ?? '',
-        content: data['content'] ?? '',
-        imageUrl: '',
-        likes: List<String>.from(data['likes'] ?? []),
-        comments: [],
-        createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-        isLiked: false,
-      );
-    }).toList();
-  }
-
+  
   Widget _buildHeader(Map<String, dynamic>? data, String uid) {
     var name = data?['name'] ?? _profileCtrl.userProfile.value?.name ?? 'User';
     final username = data?['username'] ?? _profileCtrl.userProfile.value?.username ?? '';
@@ -92,7 +38,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     final location = data?['location'] ?? '';
     final joiningDateTimestamp = data?['createdAt'] as Timestamp?;
     final joiningDate = joiningDateTimestamp?.toDate() ?? DateTime.now();
-    final profileImage = data?['profileImage'] ?? _profileCtrl.userProfile.value?.profileImage ?? '';
+    final profileImage = (data?['profileImage'] ?? data?['profilePicture'] ?? _profileCtrl.userProfile.value?.profileImage ?? '').toString();
     final coverImage = data?['coverImage'] ?? _profileCtrl.userProfile.value?.coverImage ?? '';
     final followers = (data?['followers'] ?? _profileCtrl.userProfile.value?.followers ?? 0).toString();
     final following = (data?['following'] ?? _profileCtrl.userProfile.value?.following ?? 0).toString();
@@ -125,20 +71,19 @@ class _ProfileScreenState extends State<ProfileScreen>
                     child: _buildAvatarWidget(profileImage),
                 ),
               ),
-              SizedBox(width: 180),
+              SizedBox(width: 150),
               if (FirebaseAuth.instance.currentUser?.uid == uid)
                 OutlinedButton(
                   onPressed: () async {
                     final res = await Get.to(() => EditProfilePage(username: '', bio: '', profileImageUrl: ''));
                     if (res is Map) setState(() {});
                   },
-                  child: const Text('Edit'),
+                  child: const Text('Edit Profile'),
                 ),
             ],
           ),
         ),
-
-
+        
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
           child: Column(
@@ -184,9 +129,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Future<String?> _resolveImageUrl(String? path) async {
-    return await _profileCtrl.resolveImageUrl(path);
-  }
 
   Widget _buildCoverWidget(String coverPath) {
     // If it's an http url use it directly; otherwise try to resolve via Firebase Storage
@@ -212,13 +154,19 @@ class _ProfileScreenState extends State<ProfileScreen>
     });
   }
 
-  TabBar _buildTabBar() {
+  TabBar _buildTabBar(TabController controller) {
+    final labels = ['Tweets', 'Replies', 'Retweets', 'Likes'];
+    final tabs = List<Widget>.generate(controller.length, (i) {
+      final text = i < labels.length ? labels[i] : '';
+      return Tab(text: text);
+    });
+
     return TabBar(
-      controller: TabController(length: 4, vsync: this),
+      controller: controller,
       labelColor: Colors.black,
       unselectedLabelColor: Colors.grey,
       indicatorColor: Colors.black,
-      tabs: const [Tab(text: 'Tweets'), Tab(text: 'Replies'), Tab(text: 'Media'), Tab(text: 'Likes')],
+      tabs: tabs,
     );
   }
 
@@ -241,58 +189,174 @@ class _ProfileScreenState extends State<ProfileScreen>
         stream: _profileCtrl.userDocStream(uid),
         builder: (context, snapshot) {
           final data = snapshot.data?.data();
+          ProfileTabController tabControllerCtrl;
+          try {
+            tabControllerCtrl = Get.find<ProfileTabController>();
+          } catch (_) {
+            tabControllerCtrl = Get.put(ProfileTabController());
+          }
+          final tabCtrl = tabControllerCtrl.tabController;
           return NestedScrollView(
             headerSliverBuilder: (_, __) => [
               SliverToBoxAdapter(child: _buildHeader(data, uid)),
-              SliverPersistentHeader(pinned: true, delegate: _TabBarDelegate(_buildTabBar())),
+              SliverPersistentHeader(pinned: true, delegate: _TabBarDelegate(_buildTabBar(tabCtrl))),
             ],
-            body: TabBarView(controller: TabController(length: 4, vsync: this), children: [
-              StreamBuilder<List<TweetModel>>(
-                stream: _profileCtrl.userTweetsStream(uid),
-                builder: (c, s) {
-                  if (s.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-                  if (!s.hasData || s.data!.isEmpty) return const Center(child: Text('No tweets'));
-                  final tweets = s.data!;
-                  return ListView.separated(padding: const EdgeInsets.only(bottom: 80), itemCount: tweets.length, separatorBuilder: (_, __) => Divider(color: Colors.grey.shade300), itemBuilder: (_, i) => TweetCardWidget(tweet: tweets[i]));
-                },
-              ),
-              // Replies
-              StreamBuilder<List<TweetModel>>(
-                stream: _profileCtrl.userRepliesStream(uid),
-                builder: (c, s) {
-                  if (s.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-                  if (!s.hasData || s.data!.isEmpty) return const Center(child: Text('No replies'));
-                  final replies = s.data!;
-                  return ListView.separated(padding: const EdgeInsets.only(bottom: 80), itemCount: replies.length, separatorBuilder: (_, __) => Divider(color: Colors.grey.shade300), itemBuilder: (_, i) => TweetCardWidget(tweet: replies[i]));
-                },
-              ),
-              // Media
-              StreamBuilder<List<TweetModel>>(
-                stream: _profileCtrl.userMediaStream(uid),
-                builder: (c, s) {
-                  if (s.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-                  if (!s.hasData || s.data!.isEmpty) return const Center(child: Text('No media'));
-                  final media = s.data!;
-                  if (media.isEmpty) return const Center(child: Text('No media'));
-                  return GridView.builder(padding: const EdgeInsets.all(12), itemCount: media.length, gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 6, mainAxisSpacing: 6), itemBuilder: (_, i) => ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.network(media[i].imageUrl, fit: BoxFit.cover)));
-                },
-              ),
-              // Likes
-              StreamBuilder<List<TweetModel>>(
-                stream: _profileCtrl.userLikedTweetsStream(uid),
-                builder: (c, s) {
-                  if (s.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-                  if (!s.hasData || s.data!.isEmpty) return const Center(child: Text('No liked tweets'));
-                  final tweets = s.data!;
-                  return ListView.separated(padding: const EdgeInsets.only(bottom: 80), itemCount: tweets.length, separatorBuilder: (_, __) => Divider(color: Colors.grey.shade300), itemBuilder: (_, i) => TweetCardWidget(tweet: tweets[i]));
-                },
-              ),
-            ]),
+            body: TabBarView(controller: tabCtrl, children: List<Widget>.generate(tabCtrl.length, (index) {
+              switch (index) {
+                case 0:
+                  return StreamBuilder<List<TweetModel>>(
+                    stream: _profileCtrl.userTweetsStream(uid),
+                    builder: (c, s) {
+                      if (s.hasError) return Center(child: Text('Error loading tweets: ${s.error}'));
+                      if (s.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                      final raw = s.data ?? [];
+                      final profileImageFromUser = (data?['profileImage'] ?? data?['profilePicture'] ?? '').toString();
+                      final tweets = raw.map((t) {
+                        final img = profileImageFromUser.isNotEmpty ? profileImageFromUser : t.profileImage;
+                        return TweetModel(
+                          id: t.id,
+                          uid: t.uid,
+                          username: t.username,
+                          handle: t.handle,
+                          profileImage: img,
+                          content: t.content,
+                          imageUrl: t.imageUrl,
+                          likes: t.likes,
+                          comments: t.comments,
+                          createdAt: t.createdAt,
+                          isLiked: t.isLiked,
+                        );
+                      }).toList();
+
+                      if (tweets.isEmpty) return const Center(child: Text('No tweets'));
+
+                      return ListView.separated(
+                        padding: const EdgeInsets.only(bottom: 80),
+                        itemCount: tweets.length,
+                        separatorBuilder: (_, __) => Divider(color: Colors.grey.shade300),
+                        itemBuilder: (_, i) => TweetCardWidget(tweet: tweets[i]),
+                      );
+                    },
+                  );
+                case 1:
+                  return StreamBuilder<List<TweetModel>>(
+                    stream: _profileCtrl.userRepliesStream(uid),
+                    builder: (c, s) {
+                      if (s.hasError) return Center(child: Text('Error loading replies: ${s.error}'));
+                      if (s.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                      final raw = s.data ?? [];
+                      final profileImageFromUser = (data?['profileImage'] ?? data?['profilePicture'] ?? '').toString();
+                      final replies = raw.map((r) {
+                        final img = profileImageFromUser.isNotEmpty ? profileImageFromUser : r.profileImage;
+                        return TweetModel(
+                          id: r.id,
+                          uid: r.uid,
+                          username: r.username,
+                          handle: r.handle,
+                          profileImage: img,
+                          content: r.content,
+                          imageUrl: r.imageUrl,
+                          likes: r.likes,
+                          comments: r.comments,
+                          createdAt: r.createdAt,
+                          isLiked: r.isLiked,
+                        );
+                      }).toList();
+
+                      if (replies.isEmpty) return const Center(child: Text('No replies'));
+                      return ListView.separated(
+                        padding: const EdgeInsets.only(bottom: 80),
+                        itemCount: replies.length,
+                        separatorBuilder: (_, __) => Divider(color: Colors.grey.shade300),
+                        itemBuilder: (_, i) => TweetCardWidget(tweet: replies[i]),
+                      );
+                    },
+                  );
+                case 2:
+                  // Retweets tab
+                  return StreamBuilder<List<TweetModel>>(
+                    stream: _profileCtrl.userRetweetedTweetsStream(uid),
+                    builder: (c, s) {
+                      if (s.hasError) return Center(child: Text('Error loading media: ${s.error}'));
+                      if (s.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                      final raw = s.data ?? [];
+                      (data?['profileImage'] ?? data?['profilePicture'] ?? '').toString();
+                      // For retweets we should show the original author's profile image
+                      // (do NOT replace with the profile being viewed). Keep the
+                      // tweet's `profileImage` so retweets/likes reflect original author.
+                      final retweets = raw.map((t) {
+                        return TweetModel(
+                          id: t.id,
+                          uid: t.uid,
+                          username: t.username,
+                          handle: t.handle,
+                          profileImage: t.profileImage,
+                          content: t.content,
+                          imageUrl: t.imageUrl,
+                          likes: t.likes,
+                          comments: t.comments,
+                          createdAt: t.createdAt,
+                          isLiked: t.isLiked,
+                        );
+                      }).toList();
+
+                      if (retweets.isEmpty) return const Center(child: Text('No retweets'));
+                      return ListView.separated(
+                        padding: const EdgeInsets.only(bottom: 80),
+                        itemCount: retweets.length,
+                        separatorBuilder: (_, __) => Divider(color: Colors.grey.shade300),
+                        itemBuilder: (_, i) => TweetCardWidget(tweet: retweets[i]),
+                      );
+                    },
+                  );
+               
+                case 3:
+                  // Likes tab
+                  return StreamBuilder<List<TweetModel>>(
+                    stream: _profileCtrl.userLikedTweetsStream(uid),
+                    builder: (c, s) {
+                      if (s.hasError) return Center(child: Text('Error loading likes: ${s.error}'));
+                      if (s.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                      final raw = s.data ?? [];
+                      (data?['profileImage'] ?? data?['profilePicture'] ?? '').toString();
+                      // For liked tweets, show the original author's profile image
+                      // rather than the profile owner's image.
+                      final tweets = raw.map((t) {
+                        return TweetModel(
+                          id: t.id,
+                          uid: t.uid,
+                          username: t.username,
+                          handle: t.handle,
+                          profileImage: t.profileImage,
+                          content: t.content,
+                          imageUrl: t.imageUrl,
+                          likes: t.likes,
+                          comments: t.comments,
+                          createdAt: t.createdAt,
+                          isLiked: t.isLiked,
+                        );
+                      }).toList();
+
+                      if (tweets.isEmpty) return const Center(child: Text('No liked tweets'));
+                      return ListView.separated(
+                        padding: const EdgeInsets.only(bottom: 80),
+                        itemCount: tweets.length,
+                        separatorBuilder: (_, __) => Divider(color: Colors.grey.shade300),
+                        itemBuilder: (_, i) => TweetCardWidget(tweet: tweets[i]),
+                      );
+                    },
+                  );
+                default:
+                  return const Center(child: SizedBox.shrink());
+              }
+            })),
           );
         },
       ),
     );
   }
+
+  // TabController is provided by `ProfileTabController` (app-level). No local controller lifecycle here.
 }
 
 class _TabBarDelegate extends SliverPersistentHeaderDelegate {

@@ -69,17 +69,19 @@ class _SearchScreenState extends State<SearchScreen>
           .where('username', isGreaterThanOrEqualTo: query)
           .where('username', isLessThanOrEqualTo: '$query\uf8ff')
           .get();
-      userResults = usersSnap.docs
-          .map((d) => d.data() as Map<String, dynamic>)
-          .toList();
+      userResults = usersSnap.docs.map((d) {
+        final data = d.data();
+        data['id'] = d.id;
+        return data;
+      }).toList();
 
-      final tweetsSnap = await FirebaseFirestore.instance
+        final tweetsSnap = await FirebaseFirestore.instance
           .collection('tweets')
           .where('content', isGreaterThanOrEqualTo: query)
           .where('content', isLessThanOrEqualTo: '$query\uf8ff')
           .get();
-      tweetResults = tweetsSnap.docs
-          .map((d) => TweetModel.fromDoc(d.data() as DocumentSnapshot))
+        tweetResults = tweetsSnap.docs
+          .map((d) => TweetModel.fromDoc(d))
           .toList();
     } catch (_) {
       // ignore errors for now

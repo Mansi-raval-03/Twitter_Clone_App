@@ -52,7 +52,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
   bool _isSaving = false;
   bool _isUploadingImage = false;
   XFile? _pickedImage;
+  bool _isUploadingCover = false;
   String? _uploadedProfilePath;
+  String? _uploadedCoverPath;
 
   @override
   void dispose() {
@@ -95,19 +97,32 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 child: Stack(
                   children: [
                     _buildProfileAvatar(),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: CircleAvatar(
-                        backgroundColor: Colors.blue,
-                        child: IconButton(
-                          icon: _isUploadingImage ? const SizedBox(width:20,height:20, child:CircularProgressIndicator(strokeWidth:2, color: Colors.white)) : const Icon(Icons.camera_alt, color: Colors.white),
-                          onPressed: _isUploadingImage ? null : () async {
-                            await _pickAndUploadImage();
-                          },
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: CircleAvatar(
+                          backgroundColor: Colors.blue,
+                          child: IconButton(
+                            icon: _isUploadingImage ? const SizedBox(width:20,height:20, child:CircularProgressIndicator(strokeWidth:2, color: Colors.white)) : const Icon(Icons.camera_alt, color: Colors.white),
+                            onPressed: _isUploadingImage ? null : () async {
+                              await _pickAndUploadImage();
+                            },
+                          ),
                         ),
                       ),
-                    ),
+                      Positioned(
+                        bottom: 0,
+                        left: 8,
+                        child: CircleAvatar(
+                          backgroundColor: Colors.black87,
+                          child: IconButton(
+                            icon: _isUploadingCover ? const SizedBox(width:20,height:20, child:CircularProgressIndicator(strokeWidth:2, color: Colors.white)) : const Icon(Icons.photo_size_select_large, color: Colors.white),
+                            onPressed: _isUploadingCover ? null : () async {
+                              await _pickAndUploadCover();
+                            },
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -244,6 +259,41 @@ class _EditProfilePageState extends State<EditProfilePage> {
       });
     } finally {
       if (mounted) setState(() => _isUploadingImage = false);
+    }
+  }
+
+  Future<void> _pickAndUploadCover() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Not signed in')));
+      return;
+    }
+
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (picked == null) return;
+
+    setState(() { _isUploadingCover = true; });
+
+    try {
+      final file = File(picked.path);
+      final ref = FirebaseStorage.instance.ref().child('users/$uid/cover_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      final uploadTask = ref.putFile(file);
+      await uploadTask.whenComplete(() {});
+      _uploadedCoverPath = ref.fullPath;
+
+      // Persist the coverImage path
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({'coverImage': _uploadedCoverPath, 'updatedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+
+      try {
+        await _profileCtrl.loadCurrentUser();
+      } catch (_) {}
+
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cover image uploaded')));
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Cover upload failed: $e')));
+    } finally {
+      if (mounted) setState(() => _isUploadingCover = false);
     }
   }
 }

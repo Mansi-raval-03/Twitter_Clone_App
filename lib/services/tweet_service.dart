@@ -16,7 +16,7 @@ class TweetService {
       'username': user.displayName ?? 'User',
       'handle': user.email!.split('@')[0],
       'content': content,
-      'profileImage': 'https://www.shutterstock.com/shutterstock/photos/1792956484/display_1500/stock-photo-portrait-of-caucasian-female-in-active-wear-sitting-in-lotus-pose-feeling-zen-and-recreation-during-1792956484.jpg',
+      'profileImage': user.photoURL ?? '',
       'imageUrl': '',
       'createdAt': FieldValue.serverTimestamp(),
       'likes': [],
@@ -30,15 +30,17 @@ class TweetService {
     final uid = _auth.currentUser!.uid;
     final ref = _firestore.collection('tweets').doc(tweetId);
 
-    if (likes.contains(uid)) {
-      await ref.update({
-        'likes': FieldValue.arrayRemove([uid]),
-      });
-    } else {
-      await ref.update({
-        'likes': FieldValue.arrayUnion([uid]),
-      });
-    }
+    await _firestore.runTransaction((tx) async {
+      final snap = await tx.get(ref);
+      if (!snap.exists) return;
+      final data = snap.data() ?? {};
+      final current = List<String>.from(data['likes'] ?? []);
+      if (current.contains(uid)) {
+        tx.update(ref, {'likes': FieldValue.arrayRemove([uid])});
+      } else {
+        tx.update(ref, {'likes': FieldValue.arrayUnion([uid])});
+      }
+    });
   }
 
   /// Add Reply/Comment to Tweet
@@ -56,7 +58,7 @@ class TweetService {
       'username': user.displayName ?? 'User',
       'handle': '@${user.email!.split('@')[0]}',
       'content': replyContent,
-      'profileImage': user.photoURL ?? 'https://www.shutterstock.com/shutterstock/photos/1792956484/display_1500/stock-photo-portrait-of-caucasian-female-in-active-wear-sitting-in-lotus-pose-feeling-zen-and-recreation-during-1792956484.jpg',
+      'profileImage': user.photoURL ?? '',
       'createdAt': FieldValue.serverTimestamp(),
     });
 
@@ -70,21 +72,74 @@ class TweetService {
   /// Toggle Retweet
   static Future<void> toggleRetweet(String tweetId, String uid) async {
     final ref = _firestore.collection('tweets').doc(tweetId);
-    final doc = await ref.get();
-    final data = doc.data() as Map<String, dynamic>;
-    final retweets = List<String>.from(data['retweets'] ?? []);
 
-    if (retweets.contains(uid)) {
-      await ref.update({
-        'retweets': FieldValue.arrayRemove([uid]),
-        'retweetsCount': FieldValue.increment(-1),
-      });
-    } else {
-      await ref.update({
-        'retweets': FieldValue.arrayUnion([uid]),
-        'retweetsCount': FieldValue.increment(1),
-      });
-    }
+    await _firestore.runTransaction((tx) async {
+      final snap = await tx.get(ref);
+      if (!snap.exists) return;
+      final data = snap.data() ?? {};
+      final current = List<String>.from(data['retweets'] ?? []);
+
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) return;
+
+      if (current.contains(uid)) {
+        // Remove retweet: update original tweet counts and remove any retweet doc created by this user
+        tx.update(ref, {
+          'retweets': FieldValue.arrayRemove([uid]),
+          'retweetsCount': FieldValue.increment(-1),
+        });
+
+        // Find retweet doc and delete it (there should be at most one)
+        final q = await _firestore
+            .collection('tweets')
+            .where('isRetweet', isEqualTo: true)
+            .where('originalTweetId', isEqualTo: tweetId)
+            .where('uid', isEqualTo: uid)
+            .get();
+
+        for (var doc in q.docs) {
+          tx.delete(doc.reference);
+        }
+      } else {
+        // Add retweet: update original tweet and create a new retweet document
+        tx.update(ref, {
+          'retweets': FieldValue.arrayUnion([uid]),
+          'retweetsCount': FieldValue.increment(1),
+        });
+
+        // Build embedded original data snapshot to store on retweet doc
+        final originalMap = <String, dynamic>{
+          'originalTweetId': tweetId,
+          'originalUid': data['uid'] ?? '',
+          'originalUsername': data['username'] ?? '',
+          'originalHandle': data['handle'] ?? '',
+          'originalProfileImage': data['profileImage'] ?? '',
+          'originalContent': data['content'] ?? '',
+          'originalImageUrl': data['imageUrl'] ?? '',
+          'originalCreatedAt': data['createdAt'] ?? FieldValue.serverTimestamp(),
+        };
+
+        // Create a new tweet document representing the retweet
+        final retweetDoc = {
+          'uid': currentUser.uid,
+          'username': currentUser.displayName ?? 'User',
+          'handle': currentUser.email != null ? '@${currentUser.email!.split('@')[0]}' : '@user',
+          'profileImage': currentUser.photoURL ?? '',
+          'isRetweet': true,
+          'original': originalMap,
+          'originalTweetId': tweetId,
+          // also mirror original content/image into the retweet doc for simpler UI rendering
+          'content': (originalMap['originalContent'] ?? ''),
+          'imageUrl': (originalMap['originalImageUrl'] ?? ''),
+          'createdAt': FieldValue.serverTimestamp(),
+          'likes': [],
+          'commentsCount': 0,
+          'retweetsCount': 0,
+        };
+
+        tx.set(_firestore.collection('tweets').doc(), retweetDoc);
+      }
+    });
   }
 
   /// Get Replies for a Tweet (Real-time Stream)

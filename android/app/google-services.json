@@ -51,6 +51,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "520533736138-o3r5g920enpbolcga3d2bvo33ej5r3k7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.twitter_clone_app",
+            "certificate_hash": "e3c5f092146b47566fb05f79c6561dfac4c6524b"
+          }
+        },
+        {
           "client_id": "520533736138-2vpdiait7d9fmbqep79t63bqbmab23iu.apps.googleusercontent.com",
           "client_type": 3
         }

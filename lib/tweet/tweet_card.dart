@@ -3,6 +3,8 @@ import 'package:intl/intl.dart';
 import 'package:twitter_clone_app/tweet/tweet_detail_screen.dart';
 import 'package:twitter_clone_app/tweet/tweet_model.dart';
 import 'package:twitter_clone_app/services/tweet_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 
 class TweetCardWidget extends StatefulWidget {
   final TweetModel tweet;
@@ -27,9 +29,26 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
     isLiked = widget.tweet.isLiked;
     _likesCount = widget.tweet.likes.length;
     _repliesCount = widget.tweet.comments.length;
-    _retweetsCount = 0;
-    _isLiked = widget.tweet.isLiked;
-    _isRetweeted = false;
+    _retweetsCount = widget.tweet.retweets.length;
+    
+    _isLiked = widget.tweet.likes.contains(FirebaseAuth.instance.currentUser?.uid);
+    _isRetweeted = widget.tweet.retweets.contains(FirebaseAuth.instance.currentUser?.uid);
+  }
+
+  @override
+  void didUpdateWidget(covariant TweetCardWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    // update local counters if parent provided new tweet data
+    if (mounted) {
+      setState(() {
+        _likesCount = widget.tweet.likes.length;
+        _repliesCount = widget.tweet.comments.length;
+        _retweetsCount = widget.tweet.retweets.length;
+        _isLiked = widget.tweet.likes.contains(currentUid);
+        _isRetweeted = widget.tweet.retweets.contains(currentUid);
+      });
+    }
   }
   
   String _formatNumber(int number) {
@@ -44,9 +63,20 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final timeString = DateFormat('h:mm a • MMM d').format(widget.tweet.createdAt);
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
 
-    final words = widget.tweet.content.split(' ');
+    // If this doc is a retweet, display the original tweet's author/content
+    final isRetweet = widget.tweet.isRetweet;
+    final headerRetweeter = isRetweet ? widget.tweet.username : '';
+    final displayUsername = isRetweet ? widget.tweet.originalUsername : widget.tweet.username;
+    final displayHandle = isRetweet ? widget.tweet.originalHandle : widget.tweet.handle;
+    final displayProfileImage = isRetweet ? widget.tweet.originalProfileImage : widget.tweet.profileImage;
+    final displayContent = isRetweet ? widget.tweet.originalContent : widget.tweet.content;
+    final displayImage = isRetweet ? widget.tweet.originalImageUrl : widget.tweet.imageUrl;
+    final displayCreatedAt = isRetweet ? (widget.tweet.originalCreatedAt ?? widget.tweet.createdAt) : widget.tweet.createdAt;
+    final timeString = DateFormat('h:mm a • MMM d').format(displayCreatedAt);
+
+    final words = displayContent.split(' ');
     final List<InlineSpan> textSpans = words.map((word) {
       final isHashtag = word.startsWith('#');
       final isMention = word.startsWith('@');
@@ -76,13 +106,9 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             CircleAvatar(
-              backgroundImage: widget.tweet.profileImage.isNotEmpty
-                  ? NetworkImage(widget.tweet.profileImage)
-                  : null,
+              backgroundImage: displayProfileImage.isNotEmpty ? NetworkImage(displayProfileImage) : null,
               radius: 20,
-              child: widget.tweet.profileImage.isEmpty
-                  ? const Icon(Icons.person_outline)
-                  : null,
+              child: displayProfileImage.isEmpty ? const Icon(Icons.person_outline) : null,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -92,32 +118,28 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
+                      // Show retweet header when this doc represents a retweet
+                      if (isRetweet)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8.0, bottom: 4.0),
+                          child: Row(
+                            children: [
+                              Icon(Icons.repeat, size: 14, color: Colors.grey.shade600),
+                              const SizedBox(width: 6),
+                              Text(
+                                '$headerRetweeter retweeted',
+                                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
                       Expanded(
                         child: RichText(
                           text: TextSpan(
                             children: [
-                              TextSpan(
-                                text: widget.tweet.username,
-                                style: const TextStyle(
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 15,
-                                ),
-                              ),
-                              TextSpan(
-                                text: ' ${widget.tweet.handle}',
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              TextSpan(
-                                text: ' · $timeString',
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 13,
-                                ),
-                              ),
+                              TextSpan(text: displayUsername, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w700, fontSize: 15)),
+                              TextSpan(text: ' $displayHandle', style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
+                              TextSpan(text: ' · $timeString', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
                             ],
                           ),
                         ),
@@ -155,7 +177,7 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                       children: textSpans,
                     ),
                   ),
-                  if (widget.tweet.imageUrl.isNotEmpty) ...[
+                  if (displayImage.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12),
@@ -164,7 +186,7 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                           border: Border.all(color: Colors.grey.shade200),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Image.network(widget.tweet.imageUrl),
+                        child: Image.network(displayImage),
                       ),
                     ),
                   ],
@@ -172,15 +194,33 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                  Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildAction(Icons.chat_bubble_outline, _repliesCount, () {}),
+                _buildAction(Icons.chat_bubble_outline, _repliesCount, () {
+                  // Open detail screen to reply
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => TweetDetailScreen(tweet: widget.tweet)),
+                  );
+                }),
                 _buildAction(
                   Icons.repeat,
                   _retweetsCount,
-                  () {
-                    setState(() {
-                      _isRetweeted = !_isRetweeted;
-                      _retweetsCount += _isRetweeted ? 1 : -1;
-                    });
+                  () async {
+                    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+                    if (currentUid == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please sign in to retweet')));
+                      return;
+                    }
+                      try {
+                      final targetId = widget.tweet.isRetweet ? widget.tweet.originalTweetId : widget.tweet.id;
+                      await TweetService.toggleRetweet(targetId, currentUid);
+                      setState(() {
+                        _isRetweeted = !_isRetweeted;
+                        _retweetsCount += _isRetweeted ? 1 : -1;
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_isRetweeted ? 'Retweeted' : 'Retweet removed')));
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                    }
                   },
                   active: _isRetweeted,
                   color: Colors.green,
@@ -188,18 +228,36 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                 _buildAction(
                   Icons.favorite,
                   _likesCount,
-                  () {
-                    setState(() {
-                      _isLiked = !_isLiked;
-                      _likesCount += _isLiked ? 1 : -1;
-                    });
+                  () async {
+                    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+                    if (currentUid == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please sign in to like')));
+                      return;
+                    }
+                    try {
+                      await TweetService.toggleLike(widget.tweet.id, widget.tweet.likes);
+                      setState(() {
+                        _isLiked = !_isLiked;
+                        _likesCount += _isLiked ? 1 : -1;
+                      });
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                    }
                   },
                   active: _isLiked,
                   color: Colors.red,
                 ),
                 IconButton(
                   icon: const Icon(Icons.share_outlined),
-                  onPressed: () {},
+                  onPressed: () async {
+                    try {
+                      final text = '${widget.tweet.username} ${widget.tweet.handle}: ${widget.tweet.content}';
+                      await Clipboard.setData(ClipboardData(text: text));
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tweet copied to clipboard')));
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Share failed: $e')));
+                    }
+                  },
                 ),
               ],
             ),
@@ -242,8 +300,8 @@ class Options extends StatelessWidget {
   const Options({super.key, required this.tweet});
 
   bool get isMyTweet {
-    // replace with FirebaseAuth uid later
-    const currentUserId = 'uid_1';
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null) return false;
     return tweet.uid == currentUserId;
   }
 
@@ -294,8 +352,8 @@ class Options extends StatelessWidget {
           if (!isMyTweet)
             _optionTile(
               icon: Icons.report_outlined,
-              label: 'Delete',
-              isDestructive: true,
+              label: 'Report',
+              isDestructive: false,
               onTap: () {
                 Navigator.pop(context);
               },

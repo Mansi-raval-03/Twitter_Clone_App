@@ -1,4 +1,4 @@
-import 'dart:math';
+// using Firestore streams; removed local mock/random data
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -6,32 +6,16 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'package:twitter_clone_app/Drawer/app_drawer.dart';
-import 'package:twitter_clone_app/Model/user_profile_model.dart';
 import 'package:twitter_clone_app/Pages/settings_screen.dart';
 import 'package:twitter_clone_app/Pages/user_profile_screen.dart';
 import 'package:twitter_clone_app/Widgets/tweet_composer.dart';
+import 'package:twitter_clone_app/controller/home_conteoller.dart';
 import 'package:twitter_clone_app/tweet/tweet_card.dart';
 import 'package:twitter_clone_app/tweet/tweet_model.dart';
-import 'package:twitter_clone_app/controller/home_conteoller.dart';
 
 class HomeScreen extends StatefulWidget {
-  HomeScreen( {super.key,});
-  final UserProfile currentUser = UserProfile(
-    name: "Mansi",
-    username: "mansiraval",
-    bio:
-        "Building amazing things with Flutter.I’ve learned that growth doesn’t always look like progress. Sometimes it looks like silence, patience, and choosing yourself even when it’s uncomfortable.",
-    location: "USA",
-    email: "mansiraval@gmail.com",
-    profileImage:
-        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQJ3ZD3eQoivQ0xJ4p_ILshOk74FwZ8NS-Kmw&s",
-    coverImage:
-        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSpjRkfdV2CW7Sg2sT7e3zRmUyUUIOh5IW0bw&s",
-    posts: 150,
-    followers: 250,
-    following: 500,
-    likes: 10000, uid: '1',
-  );
+  const HomeScreen({super.key});
+
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
@@ -40,43 +24,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // Use HomeController for all tweet operations
   final HomeController _homeController = Get.put(HomeController());
 
-  // fallback random generator (kept for offline/demo)
-  final List<Map<String, String>> _mockUsers = [
-    {'username': 'John Doe', 'handle': '@johndoe', 'profileImage': 'https://i.pravatar.cc/150?img=1'},
-    {'username': 'Sarah Smith', 'handle': '@sarahsmith', 'profileImage': 'https://i.pravatar.cc/150?img=5'},
-    {'username': 'Mike Johnson', 'handle': '@mikej', 'profileImage': 'https://i.pravatar.cc/150?img=12'},
-  ];
-
-  final List<String> _mockTexts = [
-    'Everyone has a purpose. You become unstoppable when you figure it out.',
-    'Working on a new Flutter feature. It’s coming soon!',
-    'Coffee first, code later ☕️',
-  ];
-
-  final List<String> _mockImages = [
-    'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee',
-  ];
-
-  List<TweetModel> _buildRandomTweets(int count) {
-    final rnd = Random();
-    return List.generate(count, (i) {
-      final user = _mockUsers[rnd.nextInt(_mockUsers.length)];
-      final hasImage = rnd.nextBool();
-      return TweetModel(
-        id: 'mock_${DateTime.now().millisecondsSinceEpoch}_${rnd.nextInt(99999)}',
-        uid: 'uid_${rnd.nextInt(10000)}',
-        username: user['username']!,
-        handle: user['handle']!,
-        profileImage: user['profileImage']!,
-        content: _mockTexts[rnd.nextInt(_mockTexts.length)],
-        imageUrl: hasImage ? _mockImages[rnd.nextInt(_mockImages.length)] : '',
-        likes: List<String>.generate(rnd.nextInt(50), (j) => 'u$j'),
-        comments: List<String>.generate(rnd.nextInt(20), (j) => 'c$j'),
-        createdAt: DateTime.now().subtract(Duration(minutes: rnd.nextInt(500))),
-        isLiked: rnd.nextBool(), name: user['name']!,
-      );
-    });
-  }
+  // Using real-time tweets from Firestore via HomeController; no local mock data
 
   
 
@@ -172,6 +120,16 @@ class _HomeScreenState extends State<HomeScreen> {
                         }
                         final profileImage = (author['profileImage'] ?? author['profilePicture'] ?? t.profileImage).toString();
 
+                        // Determine a primary retweeter (for display) if available
+                        String retweetedBy = '';
+                        if (t.retweets.isNotEmpty) {
+                          final uid = t.retweets.first;
+                          final ru = usersMap[uid];
+                          if (ru != null) {
+                            retweetedBy = (ru['username'] ?? ru['name'] ?? '').toString();
+                          }
+                        }
+
                         return TweetModel(
                           id: t.id,
                           uid: t.uid,
@@ -184,24 +142,22 @@ class _HomeScreenState extends State<HomeScreen> {
                           comments: t.comments,
                           createdAt: t.createdAt,
                           isLiked: t.isLiked,
-                          name: t.username,
+                          retweetedBy: retweetedBy,
                         );
                       }
                       return t;
                     }).toList();
 
                     if (enrichedTweets.isEmpty) {
-                      // fallback to random tweets if no tweets found
-                      final randomTweets = _buildRandomTweets(12);
-                      return ListView.separated(
-                        padding: const EdgeInsets.only(top: 4, bottom: 96),
-                        itemCount: randomTweets.length,
-                        separatorBuilder: (_, __) => Divider(
-                          height: 1,
-                          thickness: 1,
-                          color: Colors.grey.shade200,
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Text(
+                            'No tweets yet. Be the first to post!',
+                            style: TextStyle(color: Colors.grey.shade600),
+                            textAlign: TextAlign.center,
+                          ),
                         ),
-                        itemBuilder: (_, index) => TweetCardWidget(tweet: randomTweets[index]),
                       );
                     }
 

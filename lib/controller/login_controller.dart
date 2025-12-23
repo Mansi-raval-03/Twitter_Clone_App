@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/services.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:twitter_clone_app/Route/route.dart';
@@ -14,6 +15,9 @@ class LoginController extends GetxController {
   final isPasswordVisible = false.obs;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: <String>['email'],
+  );
 
   void togglePasswordVisibility() {
     isPasswordVisible.toggle();
@@ -58,8 +62,9 @@ class LoginController extends GetxController {
   Future<void> loginWithGoogle() async {
     try {
       isLoading.value = true;
-      // Trigger Google sign-in flow
-      final googleUser = await GoogleSignIn().signIn();
+
+      // Trigger Google sign-in flow using a single shared instance
+      final googleUser = await _googleSignIn.signIn();
 
       // User cancelled the sign-in
       if (googleUser == null) {
@@ -90,7 +95,6 @@ class LoginController extends GetxController {
       Get.snackbar('Success', 'Google Sign-In successful');
       Get.offAllNamed(AppRoute.mainNavigation);
 
-        
     } on FirebaseAuthException catch (e) {
       String errorMessage = 'Google Sign-In failed';
       if (e.code == 'account-exists-with-different-credential') {
@@ -105,6 +109,18 @@ class LoginController extends GetxController {
         errorMessage = 'No user found with this email.';
       }
       Get.snackbar('Error', errorMessage);
+    } on PlatformException catch (e) {
+      // Common Android error: ApiException: 10 -> developer configuration issue (SHA mismatch / OAuth client)
+      if (e.code == 'sign_in_failed' && e.message != null && e.message!.contains('ApiException: 10')) {
+        Get.snackbar(
+          'Error',
+          'Google Sign-In failed (ApiException: 10).\nPlease add your app SHA-1/ SHA-256 to the Firebase Console and Google Cloud OAuth client, download an updated google-services.json, then rebuild the app.',
+          snackPosition: SnackPosition.TOP,
+          duration: Duration(seconds: 8),
+        );
+      } else {
+        Get.snackbar('Error', 'Google Sign-In failed: ${e.message ?? e.toString()}');
+      }
     } catch (e) {
       Get.snackbar('Error', 'Google Sign-In failed: ${e.toString()}');
     } finally {

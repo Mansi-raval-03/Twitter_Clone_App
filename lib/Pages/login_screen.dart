@@ -43,9 +43,10 @@ class LoginScreen extends GetView<LoginController> {
                   SizedBox(
                     width: double.infinity,
                     height: 40,
-                    child: OutlinedButton(
-                      onPressed: controller.isLoading.value ? null : controller.loginWithGoogle,
-                      style: OutlinedButton.styleFrom(
+                    child: Obx(
+                      () => OutlinedButton(
+                        onPressed: controller.isLoading.value ? null : () => controller.loginWithGoogle(),
+                        style: OutlinedButton.styleFrom(
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
                         ),
@@ -55,19 +56,29 @@ class LoginScreen extends GetView<LoginController> {
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 8),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                         const SizedBox(width: 8),
-                          const Text(
-                            'Sign in with Google',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF0F1419),
-                            ),
-                          ),
-                        ],
+                        child: controller.isLoading.value
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Color(0xFF0F1419),
+                                ),
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: const [
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Sign in with Google',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF0F1419),
+                                    ),
+                                  ),
+                                ],
+                              ),
                       ),
                     ),
                   ),

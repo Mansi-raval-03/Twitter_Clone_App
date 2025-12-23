@@ -5,7 +5,7 @@ import 'package:get/get.dart';
 import 'package:twitter_clone_app/Drawer/app_drawer.dart';
 import 'package:twitter_clone_app/Pages/chat_screen.dart';
 import 'package:twitter_clone_app/Pages/user_profile_screen.dart';
-import 'dart:math';
+// Real data only: remove local mock/random user data
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
@@ -19,102 +19,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   List<Map<String, dynamic>> _allUsers = [];
   List<Map<String, dynamic>> _filteredUsers = [];
 
-  // Random user data
-  final List<Map<String, String>> _randomUsers = [
-    {
-      'username': 'John Doe',
-      'handle': 'johndoe',
-      'profileImage': 'https://i.pravatar.cc/150?img=1',
-    },
-    {
-      'username': 'Sarah Smith',
-      'handle': 'sarahsmith',
-      'profileImage': 'https://i.pravatar.cc/150?img=5',
-    },
-    {
-      'username': 'Mike Johnson',
-      'handle': 'mikej',
-      'profileImage': 'https://i.pravatar.cc/150?img=12',
-    },
-    {
-      'username': 'Emily Brown',
-      'handle': 'emilybrown',
-      'profileImage': 'https://i.pravatar.cc/150?img=9',
-    },
-    {
-      'username': 'David Wilson',
-      'handle': 'davidw',
-      'profileImage': 'https://i.pravatar.cc/150?img=15',
-    },
-    {
-      'username': 'Lisa Anderson',
-      'handle': 'lisaanderson',
-      'profileImage': 'https://i.pravatar.cc/150?img=20',
-    },
-    {
-      'username': 'James Taylor',
-      'handle': 'jamestaylor',
-      'profileImage': 'https://i.pravatar.cc/150?img=13',
-    },
-    {
-      'username': 'Maria Garcia',
-      'handle': 'mariagarcia',
-      'profileImage': 'https://i.pravatar.cc/150?img=24',
-    },
-    {
-      'username': 'Robert Lee',
-      'handle': 'robertlee',
-      'profileImage': 'https://i.pravatar.cc/150?img=33',
-    },
-    {
-      'username': 'Jennifer White',
-      'handle': 'jenniferwhite',
-      'profileImage': 'https://i.pravatar.cc/150?img=47',
-    },
-    {
-      'username': 'Chris Martin',
-      'handle': 'chrismartin',
-      'profileImage': 'https://i.pravatar.cc/150?img=51',
-    },
-    {
-      'username': 'Amanda Davis',
-      'handle': 'amandadavis',
-      'profileImage': 'https://i.pravatar.cc/150?img=32',
-    },
-    {
-      'username': 'Kevin Brown',
-      'handle': 'kevinbrown',
-      'profileImage': 'https://i.pravatar.cc/150?img=58',
-    },
-    {
-      'username': 'Rachel Green',
-      'handle': 'rachelgreen',
-      'profileImage': 'https://i.pravatar.cc/150?img=45',
-    },
-    {
-      'username': 'Tom Harris',
-      'handle': 'tomharris',
-      'profileImage': 'https://i.pravatar.cc/150?img=60',
-    },
-  ];
-
-  final List<String> _sampleMessages = [
-    'Hey, how are you?',
-    'Did you see the latest update?',
-    'Thanks for the help!',
-    'Let\'s catch up soon',
-    'That\'s awesome!',
-    'Check out this link',
-    'Working on the project',
-    'See you tomorrow',
-    'Great idea!',
-    'Looking forward to it',
-    'Sounds good to me',
-    'Will do!',
-    'Perfect timing',
-    'Just finished the task',
-    'Can we talk later?',
-  ];
+  // Load users from Firestore; no local mock users or sample messages
 
   @override
   void initState() {
@@ -128,55 +33,45 @@ class _MessagesScreenState extends State<MessagesScreen> {
     super.dispose();
   }
 
-  String _getRandomTime() {
-    final random = Random();
-    final times = ['2m', '5m', '15m', '1h', '2h', '3h', '5h', '1d', '2d', 'Mon', 'Tue'];
-    return times[random.nextInt(times.length)];
+  String _formatLastMessageTime(Timestamp? ts) {
+    if (ts == null) return '';
+    final date = ts.toDate();
+    final diff = DateTime.now().difference(date);
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    if (diff.inDays < 7) return '${diff.inDays}d';
+    return '${date.month}/${date.day}/${date.year}';
   }
 
   Future<void> _loadUsers() async {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
-      final random = Random();
       List<Map<String, dynamic>> users = [];
 
-      // First, try to load users from Firestore
       if (currentUser != null) {
         try {
           final usersSnapshot = await FirebaseFirestore.instance
               .collection('users')
-              .limit(10)
+              .limit(20)
               .get();
 
-          users = usersSnapshot.docs.map((doc) {
+          users = usersSnapshot.docs
+              .where((d) => d.id != currentUser.uid)
+              .map((doc) {
             final data = doc.data();
             return {
               'id': doc.id,
-              'username': data['username'] ?? 'User',
-              'handle': data['handle'] ?? 'user',
-              'profileImage': data['profileImage'] ?? '',
-              'lastMessage': _sampleMessages[random.nextInt(_sampleMessages.length)],
-              'lastMessageTime': _getRandomTime(),
-              'isOnline': random.nextBool(),
+              'username': data['username'] ?? data['name'] ?? 'User',
+              'handle': data['handle'] ?? (data['email'] != null ? data['email'].toString().split('@')[0] : 'user'),
+              'profileImage': data['profileImage'] ?? data['photoURL'] ?? '',
+              'lastMessage': (data['lastMessage'] ?? '') as String,
+              'lastMessageTime': _formatLastMessageTime((data['lastMessageTimestamp'] as Timestamp?)),
+              'isOnline': data['isOnline'] ?? false,
             };
           }).toList();
         } catch (e) {
           debugPrint('Firestore error: $e');
         }
-      }
-
-
-      for (var i = 0; i < _randomUsers.length; i++) {
-        final randomUser = _randomUsers[i];
-        users.add({
-          'id': 'random_$i',
-          'username': randomUser['username']!,
-          'handle': randomUser['handle']!,
-          'profileImage': randomUser['profileImage']!,
-          'lastMessage': _sampleMessages[random.nextInt(_sampleMessages.length)],
-          'lastMessageTime': _getRandomTime(),
-          'isOnline': random.nextBool(),
-        });
       }
 
       setState(() {
@@ -185,22 +80,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
       });
     } catch (e) {
       debugPrint('Error loading users: $e');
-      
-      // Fallback: Show only random users if everything fails
-      final random = Random();
-      _randomUsers.asMap().entries.map((entry) {
-        return {
-          'id': 'random_${entry.key}',
-          'username': entry.value['username']!,
-          'handle': entry.value['handle']!,
-          'profileImage': entry.value['profileImage']!,
-          'lastMessage': _sampleMessages[random.nextInt(_sampleMessages.length)],
-          'lastMessageTime': _getRandomTime(),
-          'isOnline': random.nextBool(),
-        };
-      }).toList();
-
-      
+      setState(() {
+        _allUsers = [];
+        _filteredUsers = [];
+      });
     }
   }
 

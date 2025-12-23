@@ -20,7 +20,21 @@ class HomeController extends GetxController {
         .collection('tweets')
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snap) => snap.docs.map((d) => TweetModel.fromDoc(d)).toList());
+        .map((snap) {
+      // Map docs to models
+      final list = snap.docs.map((d) => TweetModel.fromDoc(d)).toList();
+
+      // Deduplicate possible retweet-copies: if a user or process created
+      // a new tweet document when retweeting the same content, collapse
+      // duplicates by a stable content+image+timestamp key.
+      final Map<String, TweetModel> unique = {};
+      for (final t in list) {
+        final key = '${t.content}|${t.imageUrl}|${t.createdAt.toUtc().toIso8601String()}';
+        if (!unique.containsKey(key)) unique[key] = t;
+      }
+
+      return unique.values.toList();
+    });
   }
 
   Future<String> _uploadImage(File file) async {
@@ -49,8 +63,7 @@ class HomeController extends GetxController {
       'content': content,
       'likes': <String>[],
       'comments': <Map<String, dynamic>>[],
-      'profileImage': user.photoURL ??
-          'https://www.shutterstock.com/shutterstock/photos/1792956484/display_1500/stock-photo-portrait-of-caucasian-female-in-active-wear-sitting-in-lotus-pose-feeling-zen-and-recreation-during-1792956484.jpg',
+      'profileImage': user.photoURL ?? '',
       'imageUrl': imageUrl,
       'createdAt': FieldValue.serverTimestamp(),
     };

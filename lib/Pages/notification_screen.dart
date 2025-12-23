@@ -2,14 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:twitter_clone_app/Drawer/app_drawer.dart';
 import 'package:twitter_clone_app/Pages/user_profile_screen.dart';
-
-enum NotificationType {
-  like,
-  comment,
-  retweet,
-  follow,
-  mention,
-}
+import 'package:twitter_clone_app/controller/notification_controller.dart';
 
 class NotificationItem {
   final NotificationType type;
@@ -40,69 +33,13 @@ class NotificationScreen extends StatefulWidget {
 
 class _NotificationScreenState extends State<NotificationScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-
-  final List<NotificationItem> _notifications = [
-    NotificationItem(
-      type: NotificationType.like,
-      username: 'John Doe',
-      handle: '@johndoe',
-      profileImage: '',
-      tweetContent: 'Just deployed my new Flutter app! #Flutter #Mobile',
-      timeAgo: '2m',
-    ),
-    NotificationItem(
-      type: NotificationType.follow,
-      username: 'Sarah Smith',
-      handle: '@sarahsmith',
-      profileImage: '',
-      timeAgo: '15m',
-    ),
-    NotificationItem(
-      type: NotificationType.retweet,
-      username: 'Mike Johnson',
-      handle: '@mikej',
-      profileImage: '',
-      tweetContent: 'Learning Dart is easier than I thought!',
-      timeAgo: '1h',
-    ),
-    NotificationItem(
-      type: NotificationType.comment,
-      username: 'Emily Brown',
-      handle: '@emilybrown',
-      profileImage: '',
-      tweetContent: 'What a beautiful day for coding',
-      timeAgo: '3h',
-    ),
-    NotificationItem(
-      type: NotificationType.mention,
-      username: 'David Wilson',
-      handle: '@davidw',
-      profileImage: '',
-      tweetContent: 'Hey @mansi, check out this awesome tutorial!',
-      timeAgo: '5h',
-    ),
-    NotificationItem(
-      type: NotificationType.like,
-      username: 'Lisa Anderson',
-      handle: '@lisaanderson',
-      profileImage: '',
-      tweetContent: 'Firebase is amazing for real-time apps',
-      timeAgo: '1d',
-    ),
-    NotificationItem(
-      type: NotificationType.mention,
-      username: 'M Wilson',
-      handle: '@davidw',
-      profileImage: '',
-      tweetContent: 'Hey @mansi, check out this awesome tutorial!',
-      timeAgo: '7h',
-    ),
-  ];
+  // Ensure controller is registered with Get for access by GetBuilder
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    Get.put(NotificationController());
   }
 
   @override
@@ -114,7 +51,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-    drawer: AppDrawer(),
+      drawer: AppDrawer(),
       appBar: AppBar(
         leading: Builder(
           builder: (context) => IconButton(
@@ -181,67 +118,130 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
   }
 
   Widget _buildAllNotifications() {
-    return ListView.separated(
-      padding: EdgeInsets.zero,
-      itemCount: _notifications.length,
-      separatorBuilder: (_, __) => Divider(
-        height: 1,
-        thickness: 1,
-        color: Colors.grey.shade200,
-      ),
-      itemBuilder: (context, index) {
-        return _buildNotificationTile(_notifications[index]);
-      },
-    );
+    // Use Obx to react to changes in the controller's notification list in real-time.
+    return GetBuilder<NotificationController>(builder: (c) {
+      final rx = c.notifications;
+      if (rx.isEmpty) {
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.notifications_none, size: 64, color: Colors.grey.shade400),
+                const SizedBox(height: 16),
+                const Text(
+                  'No notifications yet',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'When someone interacts with you, you’ll see it here.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
+        final list = rx
+          .map((n) => NotificationItem(
+            type: n.type,
+            username: n.meta?['username']?.toString() ?? '',
+            handle: n.meta?['handle']?.toString() ?? '',
+            profileImage: n.meta?['profileImage']?.toString() ?? '',
+            timeAgo: n.meta?['timeAgo']?.toString() ?? '',
+            isRead: n.read,
+            ))
+          .toList();
+
+      return ListView.separated(
+        padding: EdgeInsets.zero,
+        itemCount: list.length,
+        separatorBuilder: (_, __) => Divider(
+          height: 1,
+          thickness: 1,
+          color: Colors.grey.shade200,
+        ),
+        itemBuilder: (context, index) {
+          final n = list[index];
+          return _buildNotificationTile(n);
+        },
+      );
+    });
   }
 
   Widget _buildMentionsNotifications() {
-    final mentions = _notifications.where((n) => n.type == NotificationType.mention).toList();
-    
-    if (mentions.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.notifications_none, size: 64, color: Colors.grey.shade400),
-              const SizedBox(height: 16),
-              const Text(
-                'Nothing to see here — yet',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'When someone mentions you, youll find it here.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: Colors.grey.shade600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+    // Filter mentions reactively
+    return GetBuilder<NotificationController>(builder: (c) {
+      final rx = c.notifications;
+      final rawMentions = rx.where((n) => n.type == NotificationType.mention).toList();
 
-    return ListView.separated(
-      padding: EdgeInsets.zero,
-      itemCount: mentions.length,
-      separatorBuilder: (_, __) => Divider(
-        height: 1,
-        thickness: 1,
-        color: Colors.grey.shade200,
-      ),
-      itemBuilder: (context, index) {
-        return _buildNotificationTile(mentions[index]);
-      },
-    );
+      if (rawMentions.isEmpty) {
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.notifications_none, size: 64, color: Colors.grey.shade400),
+                const SizedBox(height: 16),
+                const Text(
+                  'Nothing to see here — yet',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'When someone mentions you, you’ll find it here.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
+        final mentions = rawMentions
+          .map((n) => NotificationItem(
+            type: n.type,
+            username: n.meta?['username']?.toString() ?? '',
+            handle: n.meta?['handle']?.toString() ?? '',
+            profileImage: n.meta?['profileImage']?.toString() ?? '',
+            timeAgo: n.meta?['timeAgo']?.toString() ?? '',
+            isRead: n.read,
+            ))
+          .toList();
+
+      return ListView.separated(
+        padding: EdgeInsets.zero,
+        itemCount: mentions.length,
+        separatorBuilder: (_, __) => Divider(
+          height: 1,
+          thickness: 1,
+          color: Colors.grey.shade200,
+        ),
+        itemBuilder: (context, index) {
+          return _buildNotificationTile(mentions[index]);
+        },
+      );
+    });
   }
 
   Widget _buildNotificationTile(NotificationItem notification) {
@@ -255,7 +255,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
         iconColor = Colors.red;
         actionText = 'liked your Tweet';
         break;
-      case NotificationType.comment:
+      case NotificationType.reply:
         iconData = Icons.chat_bubble_outline;
         iconColor = Colors.lightBlueAccent;
         actionText = 'replied to your Tweet';
@@ -275,6 +275,8 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
         iconColor = Colors.lightBlueAccent;
         actionText = 'mentioned you';
         break;
+      case NotificationType.system:
+        throw UnimplementedError();
     }
 
     return InkWell(

@@ -30,6 +30,11 @@ class AuthServices {
       'email': email,
       'profilePicture': '',
       'createdAt': FieldValue.serverTimestamp(),
+      // numeric counts for consistency with follow logic
+      'followers': 0,
+      'following': 0,
+      'posts': 0,
+      'likes': 0,
     });
 
     print('Signup successful: ${user.email}');
