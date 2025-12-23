@@ -24,7 +24,7 @@ class TweetModel {
     required this.likes,
     required this.comments,
     required this.createdAt,
-    this.isLiked = false,
+    this.isLiked = false, required String name,
   });
 
   factory TweetModel.fromDoc(DocumentSnapshot doc) {
@@ -56,6 +56,7 @@ class TweetModel {
       comments: commentsList,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       isLiked: false,
+      name: data['name'] ?? 'User',
     );
   }
 

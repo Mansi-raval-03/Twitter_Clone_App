@@ -5,7 +5,6 @@ class AuthServices {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
-
   static Future<bool> signUp(
   String name,
   String email,
@@ -17,7 +16,7 @@ class AuthServices {
       email: email,
       password: password,
     );
-
+   
     User? user = userCredential.user;
 
     if (user == null) {

@@ -222,7 +222,16 @@ class _MessagesScreenState extends State<MessagesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+   drawer: AppDrawer(),
       appBar: AppBar(
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.person_4_outlined, color: Colors.black),
+            onPressed: () {
+              Scaffold.of(context).openDrawer();
+            },
+          ),
+        ),
        
         backgroundColor: Colors.white,
         elevation: 0.4,
@@ -251,7 +260,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
           ),
         ],
       ),
-      drawer: AppDrawer(),
       backgroundColor: Colors.white,
       body: Column(
         children: [
@@ -488,9 +496,24 @@ class _MessagesScreenState extends State<MessagesScreen> {
           userBio: 'Bio unavailable',
           profileImageUrl: user['profileImage'],
           coverImageUrl: '',
-          followersCount: (user['followers'] ?? 1200) as int,
-          followingCount: (user['following'] ?? 300) as int,
-          tweetsCount: (user['tweets'] ?? 540) as int,
+          followersCount: (() {
+            final v = user['followers'];
+            if (v is int) return v;
+            if (v is num) return v.toInt();
+            return int.tryParse(v?.toString() ?? '') ?? 1200;
+          })(),
+          followingCount: (() {
+            final v = user['following'];
+            if (v is int) return v;
+            if (v is num) return v.toInt();
+            return int.tryParse(v?.toString() ?? '') ?? 300;
+          })(),
+          tweetsCount: (() {
+            final v = user['tweets'];
+            if (v is int) return v;
+            if (v is num) return v.toInt();
+            return int.tryParse(v?.toString() ?? '') ?? 540;
+          })(),
         ));
   }
 

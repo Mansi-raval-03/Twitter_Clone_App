@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/utils.dart';
 import 'package:twitter_clone_app/Drawer/app_drawer.dart';
 import 'package:twitter_clone_app/Pages/user_profile_screen.dart';
 
@@ -115,8 +114,16 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+    drawer: AppDrawer(),
       appBar: AppBar(
-        
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.person_4_outlined, color: Colors.black),
+            onPressed: () {
+              Scaffold.of(context).openDrawer();
+            },
+          ),
+        ),
         backgroundColor: Colors.white,
         elevation: 0.4,
         centerTitle: false,
@@ -134,7 +141,6 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
           ),
         ),
       ),
-      drawer: AppDrawer(),
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(

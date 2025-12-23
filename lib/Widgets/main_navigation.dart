@@ -30,7 +30,7 @@ final UserProfile currentUser = UserProfile(
     posts: 150,
     followers: 250,
     following: 500,
-    likes: 10000,
+    likes: 10000, uid: 'uid_123',
   );
   @override
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
@@ -49,7 +49,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       const SearchScreen(),
       const NotificationScreen(),
       const MessagesScreen(),
-      ProfileScreen(user: widget.currentUser, tweets: [], replies: []),
+      ProfileScreen(viewedUserId: '',
+       ),
     ];
   }
 

@@ -89,8 +89,7 @@ class _TweetDetailScreenState extends State<TweetDetailScreen> {
                       backgroundImage: tweet.profileImage.isNotEmpty
                           ? NetworkImage(tweet.profileImage)
                           : const NetworkImage(
-                              'https://www.shutterstock.com/shutterstock/photos/1792956484/display_1500/stock-photo-portrait-of-caucasian-female-in-active-wear-sitting-in-lotus-pose-feeling-zen-and-recreation-during-1792956484.jpg',
-                            ),
+                              'https://www.shutterstock.com/shutterstock/photos/1792956484/display_1500/stock-photo-portrait-of-caucasian-female-in-active-wear-sitting-in-lotus-pose-feeling-zen-and-recreation-during-1792956484.jpg'),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -126,10 +125,53 @@ class _TweetDetailScreenState extends State<TweetDetailScreen> {
                             ),
                             const SizedBox(width: 12),
                             OutlinedButton(
-                              onPressed: () {
-                                setState(() {
-                                  isFollowing = !isFollowing;
-                                });
+                              onPressed: () async {
+                                final currentUid = FirebaseAuth.instance.currentUser?.uid;
+                                if (currentUid == null) return;
+
+                                if (isFollowing) {
+                                  await FirebaseFirestore.instance.collection('users').doc(currentUid).collection('userFollowing').doc(widget.tweet.uid).get().then((_) async {
+                                    await FirebaseFirestore.instance.collection('users').doc(currentUid).collection('userFollowing').doc(widget.tweet.uid).delete().catchError((_) {});
+                                  });
+                                  await FirebaseFirestore.instance.collection('users').doc(widget.tweet.uid).collection('userFollowers').doc(currentUid).delete().catchError((_) {});
+                                  // decrement counts
+                                  await FirebaseFirestore.instance.collection('users').doc(widget.tweet.uid).update({'followers': FieldValue.increment(-1)});
+                                  await FirebaseFirestore.instance.collection('users').doc(currentUid).update({'following': FieldValue.increment(-1)});
+                                  setState(() {
+                                    isFollowing = false;
+                                  });
+                                } else {
+                                  // fetch current user data
+                                  final curDoc = await FirebaseFirestore.instance.collection('users').doc(currentUid).get();
+                                  final curData = curDoc.exists ? curDoc.data()! : {
+                                    'username': FirebaseAuth.instance.currentUser?.email?.split('@')[0] ?? '',
+                                    'name': FirebaseAuth.instance.currentUser?.displayName ?? '',
+                                    'profileImage': FirebaseAuth.instance.currentUser?.photoURL ?? '',
+                                  };
+
+                                  final curMap = {
+                                    'uid': currentUid,
+                                    'username': curData['username'] ?? curData['email']?.split('@')[0] ?? '',
+                                    'name': curData['name'] ?? curData['displayName'] ?? '',
+                                    'profileImage': curData['profileImage'] ?? curData['photoURL'] ?? '',
+                                  };
+
+                                  final targetMap = {
+                                    'uid': widget.tweet.uid,
+                                    'username': widget.tweet.username,
+                                    'name': widget.tweet.username,
+                                    'profileImage': widget.tweet.profileImage,
+                                  };
+
+                                  await FirebaseFirestore.instance.collection('users').doc(widget.tweet.uid).collection('userFollowers').doc(currentUid).set(curMap);
+                                  await FirebaseFirestore.instance.collection('users').doc(currentUid).collection('userFollowing').doc(widget.tweet.uid).set(targetMap);
+                                  await FirebaseFirestore.instance.collection('users').doc(widget.tweet.uid).update({'followers': FieldValue.increment(1)});
+                                  await FirebaseFirestore.instance.collection('users').doc(currentUid).update({'following': FieldValue.increment(1)});
+
+                                  setState(() {
+                                    isFollowing = true;
+                                  });
+                                }
                               },
                               style: OutlinedButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(
@@ -167,6 +209,7 @@ class _TweetDetailScreenState extends State<TweetDetailScreen> {
                       ],
                     ),
                   ),
+              
                 ],
               ),
             ),

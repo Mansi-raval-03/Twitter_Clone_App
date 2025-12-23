@@ -5,6 +5,8 @@ import 'package:twitter_clone_app/Drawer/app_drawer.dart';
 import 'package:twitter_clone_app/Pages/settings_screen.dart';
 import 'package:twitter_clone_app/tweet/tweet_card.dart';
 import 'package:twitter_clone_app/tweet/tweet_model.dart';
+import 'package:twitter_clone_app/services/database_services.dart';
+import 'package:twitter_clone_app/Pages/profile_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -15,20 +17,26 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen>
     with SingleTickerProviderStateMixin {
-  final TextEditingController _searchController = TextEditingController();
+  
+  late TextEditingController _searchController;
   late TabController _tabController;
-  List<String> recentSearches = [];
   bool isSearching = false;
+  bool isLoading = false;
   String searchQuery = '';
-
   List<Map<String, dynamic>> userResults = [];
   List<TweetModel> tweetResults = [];
-  bool isLoading = false;
+  List<String> recentSearches = [];
 
   @override
   void initState() {
     super.initState();
+    _searchController = TextEditingController();
     _tabController = TabController(length: 2, vsync: this);
+    _searchController.addListener(() {
+      setState(() {
+        isSearching = _searchController.text.isNotEmpty;
+      });
+    });
   }
 
   @override
@@ -38,127 +46,67 @@ class _SearchScreenState extends State<SearchScreen>
     super.dispose();
   }
 
-  Future<void> _performSearch(String query) async {
-    if (query.isEmpty) {
-      setState(() {
-        isSearching = false;
-        searchQuery = '';
-        userResults = [];
-        tweetResults = [];
-      });
-      return;
-    }
-
-    setState(() {
-      isSearching = true;
-      searchQuery = query;
-      isLoading = true;
-    });
-
-    try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      final queryLower = query.toLowerCase();
-
-      // Search all tweets from home timeline
-      final tweetsSnapshot = await FirebaseFirestore.instance
-          .collection('tweets')
-          .orderBy('createdAt', descending: true)
-          .get();
-
-      final tweets = tweetsSnapshot.docs
-          .map((doc) => TweetModel.fromDoc(doc))
-          .where(
-            (tweet) =>
-                tweet.content.toLowerCase().contains(queryLower) ||
-                tweet.username.toLowerCase().contains(queryLower) ||
-                tweet.handle.toLowerCase().contains(queryLower),
-          )
-          .toList();
-
-      // Search users - prioritize current user
-      List<Map<String, dynamic>> users = [];
-
-      // First, add current user if matches
-      if (currentUser != null) {
-        final currentUsername = currentUser.displayName ?? '';
-        final currentHandle = currentUser.email?.split('@')[0] ?? '';
-
-        if (currentUsername.toLowerCase().contains(queryLower) ||
-            currentHandle.toLowerCase().contains(queryLower) ||
-            'mansi'.toLowerCase().contains(queryLower)) {
-          users.add({
-            'id': currentUser.uid,
-            'username': currentUsername.isNotEmpty ? currentUsername : 'Mansi',
-            'handle': currentHandle.isNotEmpty ? currentHandle : 'mansi',
-            'profileImage': currentUser.photoURL ?? '',
-            'isCurrentUser': true,
-          });
-        }
-      }
-
-      // Then search other users from Firestore
-      try {
-        final usersSnapshot = await FirebaseFirestore.instance
-            .collection('users')
-            .get();
-
-        final otherUsers = usersSnapshot.docs
-            .map((doc) => {'id': doc.id, ...doc.data()})
-            .where((user) {
-              final username = (user['username'] ?? '')
-                  .toString()
-                  .toLowerCase();
-              final handle = (user['handle'] ?? '').toString().toLowerCase();
-              return (username.contains(queryLower) ||
-                      handle.contains(queryLower)) &&
-                  user['id'] != currentUser?.uid;
-            })
-            .toList();
-
-        users.addAll(otherUsers);
-      } catch (e) {
-        debugPrint('Users collection search error: $e');
-      }
-
-      setState(() {
-        userResults = users;
-        tweetResults = tweets;
-        isLoading = false;
-      });
-
-      _addToRecentSearches(query);
-    } catch (e) {
-      debugPrint('Search error: $e');
-      setState(() {
-        isLoading = false;
-      });
-    }
-  }
-
-  void _addToRecentSearches(String query) {
-    setState(() {
-      recentSearches.remove(query);
-      recentSearches.insert(0, query);
-      if (recentSearches.length > 10) {
-        recentSearches = recentSearches.sublist(0, 10);
-      }
-    });
-  }
-
   void _clearSearch() {
     _searchController.clear();
     setState(() {
       isSearching = false;
       searchQuery = '';
-      userResults = [];
-      tweetResults = [];
+      userResults.clear();
+      tweetResults.clear();
     });
+  }
+
+  Future<void> _performSearch(String query) async {
+    searchQuery = query;
+    setState(() {
+      isLoading = true;
+      isSearching = true;
+    });
+
+    try {
+      final usersSnap = await FirebaseFirestore.instance
+          .collection('users')
+          .where('username', isGreaterThanOrEqualTo: query)
+          .where('username', isLessThanOrEqualTo: '$query\uf8ff')
+          .get();
+      userResults = usersSnap.docs
+          .map((d) => d.data() as Map<String, dynamic>)
+          .toList();
+
+      final tweetsSnap = await FirebaseFirestore.instance
+          .collection('tweets')
+          .where('content', isGreaterThanOrEqualTo: query)
+          .where('content', isLessThanOrEqualTo: '$query\uf8ff')
+          .get();
+      tweetResults = tweetsSnap.docs
+          .map((d) => TweetModel.fromDoc(d.data() as DocumentSnapshot))
+          .toList();
+    } catch (_) {
+      // ignore errors for now
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+
+    if (query.isNotEmpty && !recentSearches.contains(query)) {
+      recentSearches.insert(0, query);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: AppDrawer(),
       appBar: AppBar(
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.person_4_outlined, color: Colors.black),
+            onPressed: () {
+              Scaffold.of(context).openDrawer();
+            },
+          ),
+        ),
       
         backgroundColor: Colors.white,
         elevation: 0.4,
@@ -177,7 +125,7 @@ class _SearchScreenState extends State<SearchScreen>
           ),
         ),
       ),
-      drawer: AppDrawer(),
+      
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
@@ -191,10 +139,12 @@ class _SearchScreenState extends State<SearchScreen>
               ),
               child: Row(
                 children: [
-                  if (isSearching)
+                  if (isSearching) 
                     IconButton(
                       icon: const Icon(Icons.arrow_back),
-                      onPressed: _clearSearch,
+                      onPressed: () {
+                        _clearSearch();
+                      },
                     ),
                   Expanded(
                     child: Container(
@@ -402,18 +352,53 @@ class _SearchScreenState extends State<SearchScreen>
             '@${user['handle'] ?? 'user'}',
             style: TextStyle(color: Colors.grey.shade600),
           ),
-          trailing: OutlinedButton(
-            onPressed: () {},
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
-            child: const Text('Follow'),
-          ),
+          trailing: Builder(builder: (context) {
+            final currentUser = FirebaseAuth.instance.currentUser;
+            if (currentUser == null || user['id'] == currentUser.uid) {
+              return const SizedBox.shrink();
+            }
+
+            return FutureBuilder<bool>(
+              future: DatabaseServices.isFollowing(currentUser.uid, user['id']),
+              builder: (context, snap) {
+                final isFollowing = snap.data ?? false;
+                return OutlinedButton(
+                  onPressed: () async {
+                    if (isFollowing) {
+                      await DatabaseServices.unfollowUser(currentUser.uid, user['id']);
+                    } else {
+                      final currentUserData = {
+                        'username': currentUser.displayName ?? '',
+                        'name': currentUser.displayName ?? '',
+                        'profileImage': currentUser.photoURL ?? '',
+                      };
+                      final targetUserData = {
+                        'username': user['username'] ?? '',
+                        'name': user['name'] ?? user['username'] ?? '',
+                        'profileImage': user['profileImage'] ?? '',
+                      };
+                      await DatabaseServices.followUser(currentUser.uid, currentUserData, user['id'], targetUserData);
+                    }
+                    setState(() {});
+                  },
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    backgroundColor: isFollowing ? Colors.blue : null,
+                    foregroundColor: isFollowing ? Colors.white : null,
+                  ),
+                  child: Text(isFollowing ? 'Following' : 'Follow'),
+                );
+              },
+            );
+          }),
           onTap: () {
-            // Navigate to user profile
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => ProfileScreen(viewedUserId: user['id'])),
+            );
           },
         );
       },

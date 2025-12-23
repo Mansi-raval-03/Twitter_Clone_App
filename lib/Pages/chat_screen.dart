@@ -117,7 +117,7 @@ class _ChatScreenState extends State<ChatScreen> {
         elevation: 0.4,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () =>  Get.back(),
         ),
         title: InkWell(
           onTap: _openProfile,
