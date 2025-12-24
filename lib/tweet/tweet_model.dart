@@ -99,4 +99,29 @@ class TweetModel {
     isLiked = false;
     // Optionally update likes list
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'uid': uid,
+      'username': username,
+      'handle': handle,
+      'profileImage': profileImage,
+      'content': content,
+      'imageUrl': imageUrl,
+      'likes': likes,
+      'retweets': retweets,
+      'comments': comments,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'isRetweet': isRetweet,
+      if (isRetweet) ...{
+        'originalTweetId': originalTweetId,
+        'originalUsername': originalUsername,
+        'originalHandle': originalHandle,
+        'originalProfileImage': originalProfileImage,
+        'originalContent': originalContent,
+        'originalImageUrl': originalImageUrl,
+        'originalCreatedAt': originalCreatedAt != null ? Timestamp.fromDate(originalCreatedAt!) : null,
+      },
+    };
+  }
 }

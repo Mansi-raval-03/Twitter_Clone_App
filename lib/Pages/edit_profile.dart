@@ -37,6 +37,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
   late TextEditingController _nameController;
   late TextEditingController _locationController;
   late TextEditingController _websiteController;
+  bool _isLoading = false;
+  String? _initialProfileImageUrl;
 
   @override
   void initState() {
@@ -46,6 +48,40 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _nameController = TextEditingController(text: widget.name ?? '');
     _locationController = TextEditingController(text: widget.location ?? '');
     _websiteController = TextEditingController(text: widget.website ?? '');
+
+    // If caller didn't provide profile fields (empty strings), load from Firestore
+    if ((widget.username.trim().isEmpty && widget.bio.trim().isEmpty && widget.profileImageUrl.trim().isEmpty) ||
+        widget.profileImageUrl.trim().isEmpty) {
+      _loadProfile();
+    } else {
+      _initialProfileImageUrl = widget.profileImageUrl;
+    }
+  }
+
+  Future<void> _loadProfile() async {
+    setState(() => _isLoading = true);
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final data = doc.data();
+      if (data != null) {
+        _usernameController.text = (data['username'] ?? _usernameController.text).toString();
+        _bioController.text = (data['bio'] ?? _bioController.text).toString();
+        _nameController.text = (data['name'] ?? _nameController.text).toString();
+        _locationController.text = (data['location'] ?? _locationController.text).toString();
+        _websiteController.text = (data['website'] ?? _websiteController.text).toString();
+        _initialProfileImageUrl = (data['profileImage'] ?? data['profilePicture'] ?? '').toString();
+      }
+    } catch (_) {
+      // ignore load errors; keep defaults
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   final ProfileController _profileCtrl = Get.find();
@@ -70,14 +106,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 1,
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+        elevation: Theme.of(context).appBarTheme.elevation ?? 1,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.black),
+          icon: Icon(Icons.close, color: Theme.of(context).appBarTheme.foregroundColor),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Edit Profile', style: TextStyle(color: Colors.black)),
-        centerTitle: true,
+        title: Text('Edit Profile', style: TextStyle(color: Theme.of(context).appBarTheme.foregroundColor)),
+        centerTitle: false,
         actions: [
           TextButton(
             onPressed: _isSaving ? null : _handleSave,
@@ -87,9 +123,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              child: Column(
+                children: [
             Container(
               color: Colors.blue[100],
               height: 150,
@@ -148,6 +186,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Future<void> _handleSave() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Not signed in')));
       return;
     }
@@ -170,9 +209,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
         await _profileCtrl.loadCurrentUser();
       } catch (_) {}
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated')));
+      if (!mounted) return;
       Navigator.pop(context, updates);
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save: $e')));
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -199,8 +241,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (_pickedImage != null) {
       return CircleAvatar(radius: 50, backgroundImage: FileImage(File(_pickedImage!.path)));
     }
-
-    final raw = widget.profileImageUrl.trim();
+    final source = (_initialProfileImageUrl != null && _initialProfileImageUrl!.trim().isNotEmpty)
+        ? _initialProfileImageUrl!
+        : widget.profileImageUrl;
+    final raw = source.trim();
     if (raw.isEmpty) {
       return const CircleAvatar(radius: 50, child: Icon(Icons.person, size: 40));
     }
@@ -209,16 +253,40 @@ class _EditProfilePageState extends State<EditProfilePage> {
       return CircleAvatar(radius: 50, backgroundImage: NetworkImage(raw));
     }
 
-    // treat as storage path
-    return FutureBuilder<String>(
-      future: FirebaseStorage.instance.ref(raw).getDownloadURL(),
+    // treat as storage path or gs:// link -> resolve safely
+    return FutureBuilder<String?>(
+      future: _resolveStorageOrUrl(raw),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) return const CircleAvatar(radius: 50);
+        if (snap.hasError) return const CircleAvatar(radius: 50, child: Icon(Icons.person, size: 40));
         final url = snap.data;
         if (url == null || url.isEmpty) return const CircleAvatar(radius: 50, child: Icon(Icons.person, size: 40));
         return CircleAvatar(radius: 50, backgroundImage: NetworkImage(url));
       },
     );
+  }
+
+  Future<String?> _resolveStorageOrUrl(String raw) async {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return null;
+    if (trimmed.startsWith('http')) return trimmed;
+    if (trimmed.startsWith('gs://')) {
+      // convert gs:// to a storage reference if possible
+      try {
+        // FirebaseStorage can accept gs:// style via refFromURL
+        final ref = FirebaseStorage.instance.refFromURL(trimmed);
+        return await ref.getDownloadURL();
+      } catch (_) {
+        return null;
+      }
+    }
+
+    try {
+      final ref = FirebaseStorage.instance.ref(trimmed);
+      return await ref.getDownloadURL();
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _pickAndUploadImage() async {
@@ -242,9 +310,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
       final ref = FirebaseStorage.instance.ref().child('users/$uid/profile_${DateTime.now().millisecondsSinceEpoch}.jpg');
       final uploadTask = ref.putFile(file);
       await uploadTask.whenComplete(() {});
-      _uploadedProfilePath = ref.fullPath;
+      // Save download URL (safer) instead of storage path to avoid ref lookup errors
+      final downloadUrl = await ref.getDownloadURL();
+      _uploadedProfilePath = downloadUrl;
+      // reflect uploaded url locally so avatar resolves immediately
+      _initialProfileImageUrl = _uploadedProfilePath;
 
-      // Immediately persist the profileImage path so other screens see it
+      // Immediately persist the profileImage download URL so other screens see it
       await FirebaseFirestore.instance.collection('users').doc(uid).set({'profileImage': _uploadedProfilePath, 'updatedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
 
       try {
@@ -280,9 +352,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
       final ref = FirebaseStorage.instance.ref().child('users/$uid/cover_${DateTime.now().millisecondsSinceEpoch}.jpg');
       final uploadTask = ref.putFile(file);
       await uploadTask.whenComplete(() {});
-      _uploadedCoverPath = ref.fullPath;
+      final downloadUrl = await ref.getDownloadURL();
+      _uploadedCoverPath = downloadUrl;
 
-      // Persist the coverImage path
+      // Persist the coverImage download URL
       await FirebaseFirestore.instance.collection('users').doc(uid).set({'coverImage': _uploadedCoverPath, 'updatedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
 
       try {

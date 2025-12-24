@@ -9,9 +9,9 @@ class SignupScreen extends GetView<SignupController> {
   @override
   Widget build(BuildContext context) {  context=StatelessElement(SignupScreen());
     return Scaffold(
-      backgroundColor: Colors.white,
+  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(

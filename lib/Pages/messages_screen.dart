@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get/get_connect/http/src/utils/utils.dart';
 import 'package:twitter_clone_app/Drawer/app_drawer.dart';
 import 'package:twitter_clone_app/Pages/chat_screen.dart';
 import 'package:twitter_clone_app/Pages/user_profile_screen.dart';
@@ -18,6 +19,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _allUsers = [];
   List<Map<String, dynamic>> _filteredUsers = [];
+  // Contacts used for composing a new message (search across all users)
+  List<Map<String, dynamic>> _allContacts = [];
+  List<Map<String, dynamic>> _filteredContacts = [];
 
   // Load users from Firestore; no local mock users or sample messages
 
@@ -25,6 +29,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   void initState() {
     super.initState();
     _loadUsers();
+    _loadAllContacts();
   }
 
   @override
@@ -50,30 +55,40 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
       if (currentUser != null) {
         try {
-          final usersSnapshot = await FirebaseFirestore.instance
-              .collection('users')
-              .limit(20)
+          // Load only conversations that include the current user.
+          final convSnapshot = await FirebaseFirestore.instance
+              .collection('conversations')
+              .where('participants', arrayContains: currentUser.uid)
               .get();
 
-          users = usersSnapshot.docs
-              .where((d) => d.id != currentUser.uid)
-              .map((doc) {
+          for (final doc in convSnapshot.docs) {
             final data = doc.data();
-            return {
-              'id': doc.id,
-              'username': data['username'] ?? data['name'] ?? 'User',
-              'handle': data['handle'] ?? (data['email'] != null ? data['email'].toString().split('@')[0] : 'user'),
-              'profileImage': data['profileImage'] ?? data['photoURL'] ?? '',
+            final participants = List<String>.from(data['participants'] ?? []);
+            // Only show private 1-to-1 conversations
+            if (participants.length != 2) continue;
+            final otherId = participants.firstWhere((id) => id != currentUser.uid, orElse: () => '');
+            if (otherId.isEmpty) continue;
+
+            // fetch other user's profile
+            final otherDoc = await FirebaseFirestore.instance.collection('users').doc(otherId).get();
+            final otherData = otherDoc.data() ?? {};
+
+            users.add({
+              'id': otherId,
+              'username': otherData['username'] ?? otherData['name'] ?? 'User',
+              'handle': otherData['handle'] ?? (otherData['email'] != null ? otherData['email'].toString().split('@')[0] : 'user'),
+              'profileImage': otherData['profileImage'] ?? otherData['photoURL'] ?? '',
               'lastMessage': (data['lastMessage'] ?? '') as String,
               'lastMessageTime': _formatLastMessageTime((data['lastMessageTimestamp'] as Timestamp?)),
-              'isOnline': data['isOnline'] ?? false,
-            };
-          }).toList();
+              'isOnline': otherData['isOnline'] ?? false,
+            });
+          }
         } catch (e) {
           debugPrint('Firestore error: $e');
         }
       }
 
+      if (!mounted) return;
       setState(() {
         _allUsers = users;
         _filteredUsers = users;
@@ -102,6 +117,59 @@ class _MessagesScreenState extends State<MessagesScreen> {
     });
   }
 
+  // Load all contacts for starting new conversations (not limited to existing conversations)
+  Future<void> _loadAllContacts() async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+
+      final usersSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .limit(100)
+          .get();
+
+      final contacts = usersSnapshot.docs
+          .where((d) => d.id != currentUser.uid)
+          .map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'username': data['username'] ?? data['name'] ?? 'User',
+          'handle': data['handle'] ?? (data['email'] != null ? data['email'].toString().split('@')[0] : 'user'),
+          'profileImage': data['profileImage'] ?? data['photoURL'] ?? '',
+        };
+      }).toList();
+
+      if (!mounted) return;
+      setState(() {
+        _allContacts = contacts;
+        _filteredContacts = contacts;
+      });
+    } catch (e) {
+      debugPrint('Error loading contacts: $e');
+      if (!mounted) return;
+      setState(() {
+        _allContacts = [];
+        _filteredContacts = [];
+      });
+    }
+  }
+
+  void _filterContacts(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        _filteredContacts = _allContacts;
+      } else {
+        _filteredContacts = _allContacts.where((user) {
+          final username = user['username'].toString().toLowerCase();
+          final handle = user['handle'].toString().toLowerCase();
+          final searchLower = query.toLowerCase();
+          return username.contains(searchLower) || handle.contains(searchLower);
+        }).toList();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -109,48 +177,44 @@ class _MessagesScreenState extends State<MessagesScreen> {
       appBar: AppBar(
         leading: Builder(
           builder: (context) => IconButton(
-            icon: const Icon(Icons.person_4_outlined, color: Colors.black),
+            icon: Icon(Icons.person_4_outlined, color: Theme.of(context).iconTheme.color),
             onPressed: () {
               Scaffold.of(context).openDrawer();
             },
           ),
         ),
        
-        backgroundColor: Colors.white,
+  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0.4,
         centerTitle: false,
         titleSpacing: 0,
         toolbarHeight: 56,
-        title: const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
+        title: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
             'Messages',
             style: TextStyle(
-              color: Colors.black,
+              color: Theme.of(context).textTheme.titleLarge?.color,
               fontSize: 20,
               fontWeight: FontWeight.bold,
+                ),
             ),
-          ),
         ),
         actions: [
+          
           IconButton(
-            icon: const Icon(Icons.settings_outlined, color: Colors.black),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.email_outlined, color: Colors.black),
+            icon: Icon(Icons.email_outlined, color: Theme.of(context).iconTheme.color),
             onPressed: _showNewMessageDialog,
           ),
         ],
       ),
-      backgroundColor: Colors.white,
       body: Column(
         children: [
           // Search Bar
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+                color: Theme.of(context).scaffoldBackgroundColor,
               border: Border(
                 bottom: BorderSide(color: Colors.grey.shade200),
               ),
@@ -171,12 +235,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 20,
                   vertical: 12,
+              
                 ),
               ),
-            ),
-          ),
-
-          // Messages List
+                ),
+              ),
           Expanded(
             child: _filteredUsers.isEmpty
                 ? _buildEmptyState()
@@ -197,6 +260,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'messages_fab',
         backgroundColor: Colors.lightBlueAccent,
         shape: const CircleBorder(),
         onPressed: _showNewMessageDialog,
@@ -214,12 +278,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
           children: [
             Icon(Icons.email_outlined, size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Welcome to your inbox!',
               style: TextStyle(
-                fontSize: 28,
+                fontSize: 25,
                 fontWeight: FontWeight.w800,
-                color: Colors.black,
+                color: Theme.of(context).textTheme.titleLarge?.color,
               ),
             ),
             const SizedBox(height: 8),
@@ -244,10 +308,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   borderRadius: BorderRadius.circular(24),
                 ),
               ),
-              child: const Text(
+              child: Text(
                 'Write a message',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
@@ -282,9 +346,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     backgroundImage: user['profileImage'].isNotEmpty
                         ? NetworkImage(user['profileImage'])
                         : null,
-                    backgroundColor: Colors.grey.shade300,
+                    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
                     child: user['profileImage'].isEmpty
-                        ? Icon(Icons.person, size: 32, color: Colors.grey.shade600)
+                        ? Icon(Icons.person, size: 32, color: Theme.of(context).iconTheme.color)
                         : null,
                   ),
                   if (user['isOnline'] == true)
@@ -297,7 +361,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         decoration: BoxDecoration(
                           color: Colors.green,
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
+                          border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 2),
                         ),
                       ),
                     ),
@@ -316,10 +380,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       Expanded(
                         child: Text(
                           user['username'],
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 15,
-                            color: Colors.black,
+                            color: Theme.of(context).textTheme.titleLarge?.color,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -404,7 +468,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -418,10 +482,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
             children: [
               // Header
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   border: Border(
-                    bottom: BorderSide(color: Colors.grey.shade200),
+                    bottom: BorderSide(color: Theme.of(context).iconTheme.color ?? Colors.grey.shade300),
                   ),
                 ),
                 child: Row(
@@ -449,15 +513,15 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   autofocus: true,
                   decoration: InputDecoration(
                     hintText: 'Search people',
-                    prefixIcon: const Icon(Icons.search),
+                    prefixIcon: Icon(Icons.search, color: Theme.of(context).iconTheme.color),
                     filled: true,
-                    fillColor: Colors.grey.shade100,
+                    fillColor: Theme.of(context).canvasColor,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(30),
                       borderSide: BorderSide.none,
                     ),
                   ),
-                  onChanged: _filterUsers,
+                  onChanged: _filterContacts,
                 ),
               ),
 
@@ -465,18 +529,18 @@ class _MessagesScreenState extends State<MessagesScreen> {
               Expanded(
                 child: ListView.builder(
                   controller: scrollController,
-                  itemCount: _filteredUsers.length,
+                  itemCount: _filteredContacts.length,
                   itemBuilder: (context, index) {
-                    final user = _filteredUsers[index];
+                    final user = _filteredContacts[index];
                     return ListTile(
                       leading: CircleAvatar(
                         radius: 24,
                         backgroundImage: user['profileImage'].isNotEmpty
                             ? NetworkImage(user['profileImage'])
                             : null,
-                        backgroundColor: Colors.grey.shade300,
+                        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
                         child: user['profileImage'].isEmpty
-                            ? const Icon(Icons.person)
+                            ? Icon(Icons.person, color: Theme.of(context).iconTheme.color)
                             : null,
                       ),
                       title: Text(

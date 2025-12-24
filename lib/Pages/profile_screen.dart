@@ -25,9 +25,11 @@ class _ProfileScreenState extends State<ProfileScreen>
   final ProfileController _profileCtrl = Get.put(ProfileController());
 
  
-
   String? get _effectiveUid {
-    return _profileCtrl.effectiveUid(viewedUserId: widget.viewedUserId);
+    if (widget.viewedUserId != null && widget.viewedUserId!.isNotEmpty) {
+      return widget.viewedUserId;
+    }
+    return FirebaseAuth.instance.currentUser?.uid;
   }
 
   
@@ -50,7 +52,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         SizedBox(
           height: 250,
           width: double.infinity,
-          child: coverImage.isNotEmpty ? _buildCoverWidget(coverImage) : Container(color: Colors.grey.shade200),
+          child: coverImage.isNotEmpty ? _buildCoverWidget(coverImage) : Container(color: Theme.of(context).dividerColor),
         ),
 
         // Avatar and Edit button
@@ -63,9 +65,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                 child: Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 4),
+                    border: Border.all(color: Theme.of(context).shadowColor, width: 2),
                     boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 6, offset: const Offset(0, 3)),
+                      BoxShadow(color: Theme.of(context).shadowColor, blurRadius: 6, offset: const Offset(0, 3)),
                     ],
                   ),
                     child: _buildAvatarWidget(profileImage),
@@ -99,7 +101,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             children: [
               Text('📍 $location'),
               const SizedBox(width: 12),
-              Text(' ${joiningDate.toLocal().toString().substring(0, 7)}'),
+              Text('    Joined ${joiningDate.toLocal().toString().substring(0, 7)}'),
             ],
           ),
           const SizedBox(height: 12),
@@ -135,9 +137,9 @@ class _ProfileScreenState extends State<ProfileScreen>
     if (coverPath.trim().startsWith('http')) return Image.network(coverPath, fit: BoxFit.cover, width: double.infinity);
 
     return FutureBuilder<String?>(future: _profileCtrl.resolveImageUrl(coverPath), builder: (context, snap) {
-      if (snap.connectionState == ConnectionState.waiting) return Container(color: Colors.grey.shade200);
+      if (snap.connectionState == ConnectionState.waiting) return Container(color: context.theme.dividerColor);
       final url = snap.data;
-      if (url == null || url.isEmpty) return Container(color: Colors.grey.shade200);
+      if (url == null || url.isEmpty) return Container(color: Theme.of(context).dividerColor);
       return Image.network(url, fit: BoxFit.cover, width: double.infinity);
     });
   }
@@ -163,9 +165,9 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     return TabBar(
       controller: controller,
-      labelColor: Colors.black,
+      labelColor: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
       unselectedLabelColor: Colors.grey,
-      indicatorColor: Colors.black,
+      indicatorColor: Theme.of(context).textTheme.bodyLarge?.color ??  Colors.black,
       tabs: tabs,
     );
   }
@@ -178,15 +180,20 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('Profile'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text('Profile',style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),),
+        titleTextStyle: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black, fontSize: 20),
+        iconTheme: IconThemeData(color: Theme.of(context).iconTheme.color ?? Colors.black),
         leading: BackButton(onPressed: () {
-          Get.to(MainNavigationScreen(user: '', tweets: [], replies: []));
+            Get.to(MainNavigationScreen(user: '', tweets: [], replies: [], initialIndex: 0));
         }),
       ),
-      backgroundColor: Colors.white,
+  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        stream: _profileCtrl.userDocStream(uid),
+        stream: _profileCtrl.userDocStream(uid).asBroadcastStream(),
         builder: (context, snapshot) {
           final data = snapshot.data?.data();
           ProfileTabController tabControllerCtrl;
@@ -205,7 +212,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               switch (index) {
                 case 0:
                   return StreamBuilder<List<TweetModel>>(
-                    stream: _profileCtrl.userTweetsStream(uid),
+                    stream: _profileCtrl.userTweetsStream(uid).asBroadcastStream(),
                     builder: (c, s) {
                       if (s.hasError) return Center(child: Text('Error loading tweets: ${s.error}'));
                       if (s.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
@@ -233,14 +240,14 @@ class _ProfileScreenState extends State<ProfileScreen>
                       return ListView.separated(
                         padding: const EdgeInsets.only(bottom: 80),
                         itemCount: tweets.length,
-                        separatorBuilder: (_, __) => Divider(color: Colors.grey.shade300),
+                        separatorBuilder: (_, __) => Divider(color: Theme.of(context).dividerColor),
                         itemBuilder: (_, i) => TweetCardWidget(tweet: tweets[i]),
                       );
                     },
                   );
                 case 1:
                   return StreamBuilder<List<TweetModel>>(
-                    stream: _profileCtrl.userRepliesStream(uid),
+                    stream: _profileCtrl.userRepliesStream(uid).asBroadcastStream(),
                     builder: (c, s) {
                       if (s.hasError) return Center(child: Text('Error loading replies: ${s.error}'));
                       if (s.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
@@ -275,7 +282,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 case 2:
                   // Retweets tab
                   return StreamBuilder<List<TweetModel>>(
-                    stream: _profileCtrl.userRetweetedTweetsStream(uid),
+                    stream: _profileCtrl.userRetweetedTweetsStream(uid).asBroadcastStream(),
                     builder: (c, s) {
                       if (s.hasError) return Center(child: Text('Error loading media: ${s.error}'));
                       if (s.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
@@ -304,7 +311,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                       return ListView.separated(
                         padding: const EdgeInsets.only(bottom: 80),
                         itemCount: retweets.length,
-                        separatorBuilder: (_, __) => Divider(color: Colors.grey.shade300),
+                        separatorBuilder: (_, __) => Divider(color: Theme.of(context).dividerColor),
                         itemBuilder: (_, i) => TweetCardWidget(tweet: retweets[i]),
                       );
                     },
@@ -313,7 +320,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 case 3:
                   // Likes tab
                   return StreamBuilder<List<TweetModel>>(
-                    stream: _profileCtrl.userLikedTweetsStream(uid),
+                    stream: _profileCtrl.userLikedTweetsStream(uid).asBroadcastStream(),
                     builder: (c, s) {
                       if (s.hasError) return Center(child: Text('Error loading likes: ${s.error}'));
                       if (s.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
@@ -341,7 +348,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                       return ListView.separated(
                         padding: const EdgeInsets.only(bottom: 80),
                         itemCount: tweets.length,
-                        separatorBuilder: (_, __) => Divider(color: Colors.grey.shade300),
+                        separatorBuilder: (_, __) => Divider(color: Theme.of(context).dividerColor),
                         itemBuilder: (_, i) => TweetCardWidget(tweet: tweets[i]),
                       );
                     },
@@ -365,7 +372,7 @@ class _TabBarDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   Widget build(context, double shrinkOffset, bool overlapsContent) {
-    return Container(color: Colors.white, child: tabBar);
+    return Container(color: Theme.of(context).scaffoldBackgroundColor, child: tabBar);
   }
 
   @override

@@ -36,8 +36,9 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
-      theme: AppThemes().lightMode,
-      darkTheme: AppThemes().darkMode,
+      
+      theme: AppThemes.lightMode,
+      darkTheme: AppThemes.darkMode,
       themeMode: ThemeMode.system,
       title: 'Twitter Clone',
       debugShowCheckedModeBanner: false,
@@ -45,7 +46,7 @@ class MyApp extends StatelessWidget {
       enableLog: true,
       initialRoute: initialRoute,
       getPages: [
-        GetPage(name: AppRoute.login, page: () => const LoginScreen(),
+        GetPage(name: AppRoute.login, page: () =>  LoginScreen(),
             binding: LoginBinding()),
         GetPage(name: AppRoute.signup, page: () => const SignupScreen(),
             binding: SignupBinding()),

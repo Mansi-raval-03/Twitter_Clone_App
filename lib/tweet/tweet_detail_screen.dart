@@ -156,12 +156,14 @@ class _TweetDetailScreenState extends State<TweetDetailScreen> {
                                   () async {
                                     final currentUser = FirebaseAuth.instance.currentUser;
                                     if (currentUser == null) {
+                                      if (!mounted) return;
                                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please sign in to retweet')));
                                       return;
                                     }
                                     try {
                                       final targetId = tweet.isRetweet ? tweet.originalTweetId : tweet.id;
                                       await TweetService.toggleRetweet(targetId, currentUser.uid);
+                                      if (!mounted) return;
                                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tweet.retweets.contains(currentUser.uid) ? 'Retweet removed' : 'Retweeted!')));
                                     } catch (e) {
                                       if (!mounted) return;
@@ -177,6 +179,7 @@ class _TweetDetailScreenState extends State<TweetDetailScreen> {
                                   () async {
                                     final currentUser = FirebaseAuth.instance.currentUser;
                                     if (currentUser == null) {
+                                      if (!mounted) return;
                                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please sign in to like')));
                                       return;
                                     }
@@ -226,6 +229,7 @@ class _TweetDetailScreenState extends State<TweetDetailScreen> {
               final currentUser = FirebaseAuth.instance.currentUser;
 
               if (currentUser == null) {
+                if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please sign in to reply')));
                 return;
               }
@@ -265,6 +269,7 @@ class _TweetDetailScreenState extends State<TweetDetailScreen> {
                             onPressed: () async {
                               final reply = replyController.text.trim();
                               if (reply.isEmpty) {
+                                if (!mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a reply')));
                                 return;
                               }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get/get_connect/http/src/utils/utils.dart';
 import 'package:twitter_clone_app/Drawer/app_drawer.dart';
 import 'package:twitter_clone_app/Pages/user_profile_screen.dart';
 import 'package:twitter_clone_app/controller/notification_controller.dart';
@@ -55,43 +56,43 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
       appBar: AppBar(
         leading: Builder(
           builder: (context) => IconButton(
-            icon: const Icon(Icons.person_4_outlined, color: Colors.black),
+            icon: Icon(Icons.person_4_outlined, color: Theme.of(context).iconTheme.color),
             onPressed: () {
               Scaffold.of(context).openDrawer();
             },
           ),
         ),
-        backgroundColor: Colors.white,
+  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0.4,
         centerTitle: false,
         titleSpacing: 0,
         toolbarHeight: 56,
-        title: const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
+        title: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
             'Notifications',
             style: TextStyle(
-              color: Colors.black,
+              color: Theme.of(context).textTheme.titleLarge?.color,
               fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
           ),
         ),
       ),
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).scaffoldBackgroundColor,
                 border: Border(
                   bottom: BorderSide(color: Colors.grey.shade200),
                 ),
               ),
               child: TabBar(
                 controller: _tabController,
-                labelColor: Colors.black,
+                labelColor: Theme.of(context).textTheme.titleLarge?.color,
                 unselectedLabelColor: Colors.grey,
                 indicatorColor: Colors.lightBlueAccent,
                 indicatorWeight: 3,
@@ -130,12 +131,12 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
               children: [
                 Icon(Icons.notifications_none, size: 64, color: Colors.grey.shade400),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'No notifications yet',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
-                    color: Colors.black,
+                    color: Theme.of(context).textTheme.titleLarge?.color,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -195,12 +196,12 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
               children: [
                 Icon(Icons.notifications_none, size: 64, color: Colors.grey.shade400),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'Nothing to see here — yet',
                   style: TextStyle(
-                    fontSize: 28,
+                    fontSize: 20,
                     fontWeight: FontWeight.w800,
-                    color: Colors.black,
+                    color: Theme.of(context).textTheme.titleLarge?.color,
                   ),
                 ),
                 const SizedBox(height: 8),

@@ -2,13 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:twitter_clone_app/controller/profile_controller.dart';
 import 'package:twitter_clone_app/Pages/book_marks_screen.dart';
-import 'package:twitter_clone_app/Pages/home_screen.dart';
-import 'package:twitter_clone_app/Pages/login_screen.dart';
-import 'package:twitter_clone_app/Pages/messages_screen.dart';
-import 'package:twitter_clone_app/Pages/notification_screen.dart';
-import 'package:twitter_clone_app/Pages/profile_screen.dart';
-import 'package:twitter_clone_app/Pages/search_screen.dart';
+import 'package:twitter_clone_app/Route/route.dart';
 import 'package:twitter_clone_app/Pages/settings_screen.dart';
+import 'package:twitter_clone_app/Widgets/main_navigation.dart';
 
 class AppDrawer extends StatelessWidget {
   AppDrawer({super.key});
@@ -25,29 +21,38 @@ class AppDrawer extends StatelessWidget {
 
           _drawerItem(Icons.person, 'Profile', () {
             final uid = _profileController.userProfile.value?.uid ?? '';
-            _navigate(
-              context,
-              ProfileScreen(viewedUserId: uid),
-            );
+            Navigator.pop(context);
+            Navigator.push(context, MaterialPageRoute(builder: (_) =>
+              MainNavigationScreen(user: '', tweets: [], replies: [], initialIndex: 4, profileUserId: uid)
+            ));
           }),
 
           _drawerItem(Icons.home, 'Home', () {
-            _navigate(
-              context,
-              HomeScreen(),
-            );
+            Navigator.pop(context);
+            Navigator.push(context, MaterialPageRoute(builder: (_) =>
+              MainNavigationScreen(user: '', tweets: [], replies: [], initialIndex: 0)
+            ));
           }),
 
           _drawerItem(Icons.explore, 'Explore', () {
-            _navigate(context, const SearchScreen());
+            Navigator.pop(context);
+            Navigator.push(context, MaterialPageRoute(builder: (_) =>
+              MainNavigationScreen(user: '', tweets: [], replies: [], initialIndex: 1)
+            ));
           }),
 
           _drawerItem(Icons.notifications, 'Notifications', () {
-            _navigate(context, const NotificationScreen());
+            Navigator.pop(context);
+            Navigator.push(context, MaterialPageRoute(builder: (_) =>
+              MainNavigationScreen(user: '', tweets: [], replies: [], initialIndex: 2)
+            ));
           }),
 
           _drawerItem(Icons.mail, 'Messages', () {
-            _navigate(context, const MessagesScreen());
+            Navigator.pop(context);
+            Navigator.push(context, MaterialPageRoute(builder: (_) =>
+              MainNavigationScreen(user: '', tweets: [], replies: [], initialIndex: 3)
+            ));
           }),
 
           _drawerItem(Icons.bookmark, 'Bookmarks', () {
@@ -63,11 +68,7 @@ class AppDrawer extends StatelessWidget {
           _drawerItem(Icons.help, 'Help Center', () {}),
 
           _drawerItem(Icons.logout, 'Logout', () {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (_) => const LoginScreen()),
-              (route) => false,
-            );
+            Get.offAllNamed(AppRoute.login);
           }),
         ],
       ),

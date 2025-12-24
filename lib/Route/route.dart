@@ -10,4 +10,5 @@ abstract class AppRoute{
   static const settingsScreen = '/settingsScreen';
   static const editProfileScreen = '/editProfileScreen';
   static const searchScreen = '/searchScreen';
+  static const notificationsScreen = '/notificationsScreen';
 }

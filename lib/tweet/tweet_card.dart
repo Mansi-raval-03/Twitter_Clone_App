@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:twitter_clone_app/controller/home_conteoller.dart';
 import 'package:twitter_clone_app/tweet/tweet_detail_screen.dart';
 import 'package:twitter_clone_app/tweet/tweet_model.dart';
 import 'package:twitter_clone_app/services/tweet_service.dart';
@@ -30,9 +32,13 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
     _likesCount = widget.tweet.likes.length;
     _repliesCount = widget.tweet.comments.length;
     _retweetsCount = widget.tweet.retweets.length;
-    
-    _isLiked = widget.tweet.likes.contains(FirebaseAuth.instance.currentUser?.uid);
-    _isRetweeted = widget.tweet.retweets.contains(FirebaseAuth.instance.currentUser?.uid);
+
+    _isLiked = widget.tweet.likes.contains(
+      FirebaseAuth.instance.currentUser?.uid,
+    );
+    _isRetweeted = widget.tweet.retweets.contains(
+      FirebaseAuth.instance.currentUser?.uid,
+    );
   }
 
   @override
@@ -50,7 +56,7 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
       });
     }
   }
-  
+
   String _formatNumber(int number) {
     if (number >= 1000 && number < 1000000) {
       return '${(number / 1000).toStringAsFixed(1)}K';
@@ -63,17 +69,28 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final currentUid = FirebaseAuth.instance.currentUser?.uid;
 
     // If this doc is a retweet, display the original tweet's author/content
     final isRetweet = widget.tweet.isRetweet;
     final headerRetweeter = isRetweet ? widget.tweet.username : '';
-    final displayUsername = isRetweet ? widget.tweet.originalUsername : widget.tweet.username;
-    final displayHandle = isRetweet ? widget.tweet.originalHandle : widget.tweet.handle;
-    final displayProfileImage = isRetweet ? widget.tweet.originalProfileImage : widget.tweet.profileImage;
-    final displayContent = isRetweet ? widget.tweet.originalContent : widget.tweet.content;
-    final displayImage = isRetweet ? widget.tweet.originalImageUrl : widget.tweet.imageUrl;
-    final displayCreatedAt = isRetweet ? (widget.tweet.originalCreatedAt ?? widget.tweet.createdAt) : widget.tweet.createdAt;
+    final displayUsername = isRetweet
+        ? widget.tweet.originalUsername
+        : widget.tweet.username;
+    final displayHandle = isRetweet
+        ? widget.tweet.originalHandle
+        : widget.tweet.handle;
+    final displayProfileImage = isRetweet
+        ? widget.tweet.originalProfileImage
+        : widget.tweet.profileImage;
+    final displayContent = isRetweet
+        ? widget.tweet.originalContent
+        : widget.tweet.content;
+    final displayImage = isRetweet
+        ? widget.tweet.originalImageUrl
+        : widget.tweet.imageUrl;
+    final displayCreatedAt = isRetweet
+        ? (widget.tweet.originalCreatedAt ?? widget.tweet.createdAt)
+        : widget.tweet.createdAt;
     final timeString = DateFormat('h:mm a • MMM d').format(displayCreatedAt);
 
     final words = displayContent.split(' ');
@@ -96,81 +113,125 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => TweetDetailScreen(tweet: widget.tweet)),
+          MaterialPageRoute(
+            builder: (_) => TweetDetailScreen(tweet: widget.tweet),
+          ),
         );
       },
       child: Container(
-        color: Colors.white,
+        color: Theme.of(context).scaffoldBackgroundColor,
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             CircleAvatar(
-              backgroundImage: displayProfileImage.isNotEmpty ? NetworkImage(displayProfileImage) : null,
+              backgroundImage: displayProfileImage.isNotEmpty
+                  ? NetworkImage(displayProfileImage)
+                  : null,
               radius: 20,
-              child: displayProfileImage.isEmpty ? const Icon(Icons.person_outline) : null,
+              child: displayProfileImage.isEmpty
+                  ? const Icon(Icons.person_outline)
+                  : null,
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // Show retweet header when this doc represents a retweet
-                      if (isRetweet)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 8.0, bottom: 4.0),
-                          child: Row(
-                            children: [
-                              Icon(Icons.repeat, size: 14, color: Colors.grey.shade600),
-                              const SizedBox(width: 6),
-                              Text(
-                                '$headerRetweeter retweeted',
-                                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                              ),
-                            ],
+                  // Retweet header: shown above the author row for clarity
+                  if (isRetweet)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 0.0, bottom: 6.0),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.repeat,
+                            size: 14,
+                            color: Colors.grey.shade600,
                           ),
-                        ),
+                          const SizedBox(width: 4),
+                          RichText(
+                            text: TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: headerRetweeter,
+                                  style: TextStyle(
+                                    color: Theme.of(context).textTheme.bodyLarge?.color,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                TextSpan(text: ' '),
+                                TextSpan(
+                                  text: 'retweeted',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  Row(
+                    children: [
                       Expanded(
                         child: RichText(
                           text: TextSpan(
                             children: [
-                              TextSpan(text: displayUsername, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w700, fontSize: 15)),
-                              TextSpan(text: ' $displayHandle', style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
-                              TextSpan(text: ' · $timeString', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                              TextSpan(
+                                text: displayUsername,
+                                style: TextStyle(
+                                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              TextSpan(
+                                text: ' $displayHandle',
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              TextSpan(
+                                text: ' · $timeString',
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 13,
+                                ),
+                              ),
                             ],
                           ),
                         ),
                       ),
-                     IconButton(
-  icon: Icon(
-    Icons.more_horiz,
-    size: 18,
-    color: Colors.grey.shade600,
-  ),
-  onPressed: () {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) => Options(
-        tweet: widget.tweet,
-      ),
-    );
-  },
-),
-
-
+                      IconButton(
+                        icon: Icon(
+                          Icons.more_horiz,
+                          size: 18,
+                          color: Colors.grey.shade600,
+                        ),
+                        onPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.vertical(
+                                top: Radius.circular(16),
+                              ),
+                            ),
+                            builder: (_) => Options(tweet: widget.tweet),
+                          );
+                        },
+                      ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   RichText(
                     text: TextSpan(
-                      style: const TextStyle(
-                        color: Colors.black87,
+                      style: TextStyle(
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
                         fontSize: 15,
                         height: 1.35,
                       ),
@@ -191,76 +252,129 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                     ),
                   ],
                   const SizedBox(height: 8),
-                 Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildAction(Icons.chat_bubble_outline, _repliesCount, () {
-                  // Open detail screen to reply
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => TweetDetailScreen(tweet: widget.tweet)),
-                  );
-                }),
-                _buildAction(
-                  Icons.repeat,
-                  _retweetsCount,
-                  () async {
-                    final currentUid = FirebaseAuth.instance.currentUser?.uid;
-                    if (currentUid == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please sign in to retweet')));
-                      return;
-                    }
-                      try {
-                      final targetId = widget.tweet.isRetweet ? widget.tweet.originalTweetId : widget.tweet.id;
-                      await TweetService.toggleRetweet(targetId, currentUid);
-                      setState(() {
-                        _isRetweeted = !_isRetweeted;
-                        _retweetsCount += _isRetweeted ? 1 : -1;
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_isRetweeted ? 'Retweeted' : 'Retweet removed')));
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-                    }
-                  },
-                  active: _isRetweeted,
-                  color: Colors.green,
-                ),
-                _buildAction(
-                  Icons.favorite,
-                  _likesCount,
-                  () async {
-                    final currentUid = FirebaseAuth.instance.currentUser?.uid;
-                    if (currentUid == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please sign in to like')));
-                      return;
-                    }
-                    try {
-                      await TweetService.toggleLike(widget.tweet.id, widget.tweet.likes);
-                      setState(() {
-                        _isLiked = !_isLiked;
-                        _likesCount += _isLiked ? 1 : -1;
-                      });
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-                    }
-                  },
-                  active: _isLiked,
-                  color: Colors.red,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.share_outlined),
-                  onPressed: () async {
-                    try {
-                      final text = '${widget.tweet.username} ${widget.tweet.handle}: ${widget.tweet.content}';
-                      await Clipboard.setData(ClipboardData(text: text));
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tweet copied to clipboard')));
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Share failed: $e')));
-                    }
-                  },
-                ),
-              ],
-            ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildAction(
+                        Icons.chat_bubble_outline,
+                        _repliesCount,
+                        () {
+                          // Open detail screen to reply
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  TweetDetailScreen(tweet: widget.tweet),
+                            ),
+                          );
+                        },
+                      ),
+                      _buildAction(
+                        Icons.repeat,
+                        _retweetsCount,
+                        () async {
+                          final currentUid =
+                              FirebaseAuth.instance.currentUser?.uid;
+                          if (currentUid == null) {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please sign in to retweet'),
+                              ),
+                            );
+                            return;
+                          }
+                          try {
+                            final targetId = widget.tweet.isRetweet
+                                ? widget.tweet.originalTweetId
+                                : widget.tweet.id;
+                            await TweetService.toggleRetweet(
+                              targetId,
+                              currentUid,
+                            );
+                            if (!mounted) return;
+                            setState(() {
+                              _isRetweeted = !_isRetweeted;
+                              _retweetsCount += _isRetweeted ? 1 : -1;
+                            });
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  _isRetweeted
+                                      ? 'Retweeted'
+                                      : 'Retweet removed',
+                                ),
+                              ),
+                            );
+                          } catch (e) {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Error: $e')),
+                            );
+                          }
+                        },
+                        active: _isRetweeted,
+                        color: Colors.green,
+                      ),
+                      _buildAction(
+                        Icons.favorite,
+                        _likesCount,
+                        () async {
+                          final currentUid =
+                              FirebaseAuth.instance.currentUser?.uid;
+                          if (currentUid == null) {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please sign in to like'),
+                              ),
+                            );
+                            return;
+                          }
+                          try {
+                            await TweetService.toggleLike(
+                              widget.tweet.id,
+                              widget.tweet.likes,
+                            );
+                            if (!mounted) return;
+                            setState(() {
+                              _isLiked = !_isLiked;
+                              _likesCount += _isLiked ? 1 : -1;
+                            });
+                          } catch (e) {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Error: $e')),
+                            );
+                          }
+                        },
+                        active: _isLiked,
+                        color: Colors.red,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.share_outlined),
+                        onPressed: () async {
+                          try {
+                            final text =
+                                '${widget.tweet.username} ${widget.tweet.handle}: ${widget.tweet.content}';
+                            await Clipboard.setData(ClipboardData(text: text));
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Tweet copied to clipboard'),
+                              ),
+                            );
+                          } catch (e) {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Share failed: $e')),
+                            );
+                          }
+                        },
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -269,7 +383,6 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
       ),
     );
   }
-
 
   Widget _buildAction(
     IconData icon,
@@ -311,53 +424,55 @@ class Options extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _optionTile(
-            icon: tweet.isLiked ? Icons.favorite : Icons.favorite_border,
-            label: tweet.isLiked ? 'Unlike' : 'Like',
-            onTap: () {
-              Navigator.pop(context);
-              // TODO: toggle like
-            },
-          ),
+          // Only show action options for tweets that belong to the current user.
+          if (!isMyTweet)
+            // For other users' tweets, don't show like/share/bookmark/report.
+            // Provide a simple cancel entry so the sheet can be closed gracefully.
+            ListTile(
+              leading: const Icon(Icons.close),
+              title: const Text('Cancel'),
+              onTap: () => Navigator.pop(context),
+            ),
 
-          _optionTile(
-            icon: Icons.share_outlined,
-            label: 'Share',
-            onTap: () {
-              Navigator.pop(context);
-            },
-          ),
+          if (isMyTweet) ...[
+            _optionTile(
+              icon: tweet.isLiked ? Icons.favorite : Icons.favorite_border,
+              label: tweet.isLiked ? 'Unlike' : 'Like',
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
 
-          _optionTile(
-            icon: Icons.bookmark_border,
-            label: 'Bookmark',
-            onTap: () {
-              Navigator.pop(context);
-            },
-          ),
+            _optionTile(
+              icon: Icons.share_outlined,
+              label: 'Share',
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
 
-          if (isMyTweet) const Divider(),
+            _optionTile(
+              icon: Icons.bookmark_border,
+              label: 'Bookmark',
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
 
-          if (isMyTweet)
+            const Divider(),
+
             _optionTile(
               icon: Icons.delete_outline,
               label: 'Delete',
               isDestructive: true,
               onTap: () {
-                Navigator.pop(context);
+                // Keep bottom sheet mounted; confirmation dialog will close
+                // itself and then deletion will occur while the sheet context
+                // remains valid.
                 _confirmDelete(context);
               },
             ),
-
-          if (!isMyTweet)
-            _optionTile(
-              icon: Icons.report_outlined,
-              label: 'Report',
-              isDestructive: false,
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
+          ],
         ],
       ),
     );
@@ -370,10 +485,7 @@ class Options extends StatelessWidget {
     bool isDestructive = false,
   }) {
     return ListTile(
-      leading: Icon(
-        icon,
-        color: isDestructive ? Colors.red : Colors.black,
-      ),
+      leading: Icon(icon, color: isDestructive ? Colors.red : Colors.black),
       title: Text(
         label,
         style: TextStyle(
@@ -388,43 +500,57 @@ class Options extends StatelessWidget {
   void _confirmDelete(BuildContext context) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Delete Tweet?'),
         content: const Text('This can’t be undone.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Get.back(),
             child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(context);
+              // Close the confirmation dialog first
+              Navigator.pop(dialogContext);
+
               try {
+                // Perform deletion while the bottom sheet (and its context)
+                // is still mounted so we can reliably show a SnackBar.
                 await TweetService.deleteTweet(tweet.id);
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Tweet deleted successfully'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
+
+                // Update local HomeController cache so UI updates immediately
+                try {
+                  final homeController = Get.find<HomeController>();
+                  homeController.tweets.removeWhere((t) => t.id == tweet.id);
+                } catch (_) {}
+
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Tweet deleted successfully'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+
+                // Now close the bottom sheet
+                if (context.mounted) Navigator.pop(context);
               } catch (e) {
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Error deleting tweet: $e'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error deleting tweet: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               }
             },
-            child: const Text(
-              'Delete',
-              style: TextStyle(color: Colors.red),
-            ),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
     );
+          
   }
 }

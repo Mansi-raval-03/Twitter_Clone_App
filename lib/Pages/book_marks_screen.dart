@@ -16,6 +16,7 @@ class BookmarksScreen extends StatelessWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'bookmarks_fab',
         onPressed: () {
           // Add your bookmark action here
         },

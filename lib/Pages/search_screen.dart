@@ -103,24 +103,24 @@ class _SearchScreenState extends State<SearchScreen>
       appBar: AppBar(
         leading: Builder(
           builder: (context) => IconButton(
-            icon: const Icon(Icons.person_4_outlined, color: Colors.black),
+            icon: Icon(Icons.person_4_outlined, color: Theme.of(context).iconTheme.color),
             onPressed: () {
               Scaffold.of(context).openDrawer();
             },
           ),
         ),
       
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0.4,
         centerTitle: false,
         titleSpacing: 0,
         toolbarHeight: 56,
-        title: const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
+        title: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
             'Explore',
             style: TextStyle(
-              color: Colors.black,
+              color: Theme.of(context).textTheme.titleLarge?.color,
               fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
@@ -128,7 +128,6 @@ class _SearchScreenState extends State<SearchScreen>
         ),
       ),
       
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
@@ -136,7 +135,7 @@ class _SearchScreenState extends State<SearchScreen>
             Container(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).scaffoldBackgroundColor,
                 border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
               ),
               child: Row(
@@ -211,14 +210,14 @@ class _SearchScreenState extends State<SearchScreen>
             if (isSearching) ...[
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).scaffoldBackgroundColor,
                   border: Border(
                     bottom: BorderSide(color: Colors.grey.shade200),
                   ),
                 ),
                 child: TabBar(
                   controller: _tabController,
-                  labelColor: Colors.black,
+                  labelColor: Theme.of(context).textTheme.bodyLarge?.color,
                   unselectedLabelColor: Colors.grey,
                   indicatorColor: Colors.lightBlueAccent,
                   indicatorWeight: 3,

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
@@ -92,41 +93,42 @@ class ProfileController extends GetxController {
   }
 
   Stream<DocumentSnapshot<Map<String, dynamic>>> userDocStream(String uid) {
-    return FirebaseFirestore.instance.collection('users').doc(uid).snapshots();
+    return FirebaseFirestore.instance.collection('users').doc(uid).snapshots().asBroadcastStream();
   }
 
   Stream<List<TweetModel>> userTweetsStream(String uid) {
     // Fetch all tweets ordered by createdAt and filter client-side by uid.
     return FirebaseFirestore.instance
-        .collection('tweets')
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snap) {
+      .collection('tweets')
+      .orderBy('createdAt', descending: true)
+      .snapshots()
+      .map((snap) {
       try {
         // ignore: avoid_print
         print('ProfileController.userTweetsStream(all) -> ${snap.docs.length} docs');
       } catch (_) {}
       final all = snap.docs.map((d) => TweetModel.fromDoc(d)).toList();
       return all.where((t) => t.uid == uid).toList();
-    });
+    }).asBroadcastStream();
   }
 
   Stream<List<TweetModel>> userRepliesStream(String uid) {
-    // Fetch replies authored by `uid` and resolve their parent tweets.
-    final repliesQuery = FirebaseFirestore.instance
-        .collectionGroup('replies')
-        .where('uid', isEqualTo: uid)
-        .orderBy('createdAt', descending: true);
+    final repliesQuery = FirebaseFirestore.instance.collectionGroup('replies').where('uid', isEqualTo: uid);
 
-    return repliesQuery.snapshots().asyncMap((snap) async {
-      try {
-        // ignore: avoid_print
-        print('ProfileController.userRepliesStream(filtered) -> ${snap.docs.length} docs');
-      } catch (_) {}
+    Stream<List<TweetModel>> _mapRepliesQuery(QuerySnapshot<Map<String, dynamic>> snap) async* {
+      // Sort replies client-side by createdAt (desc)
+      final docs = snap.docs.toList();
+      docs.sort((a, b) {
+        final aTs = a.data()['createdAt'];
+        final bTs = b.data()['createdAt'];
+        final aDate = aTs is Timestamp ? aTs.toDate() : DateTime.tryParse(aTs?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bDate = bTs is Timestamp ? bTs.toDate() : DateTime.tryParse(bTs?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bDate.compareTo(aDate);
+      });
 
       // Collect parent tweet IDs
       final parentIds = <String>{};
-      for (final doc in snap.docs) {
+      for (final doc in docs) {
         final parent = doc.reference.parent.parent;
         if (parent != null) parentIds.add(parent.id);
       }
@@ -138,40 +140,136 @@ class ProfileController extends GetxController {
       }).toList();
 
       final results = await Future.wait(futures);
-      return results.whereType<TweetModel>().toList();
-    });
+      yield results.whereType<TweetModel>().toList();
+    }
+
+    Stream<List<TweetModel>> _mapTweetsScan(QuerySnapshot<Map<String, dynamic>> snap) async* {
+      final parentTweets = <TweetModel>[];
+      try {
+        for (final tdoc in snap.docs) {
+          try {
+            final repliesSnap = await FirebaseFirestore.instance
+                .collection('tweets')
+                .doc(tdoc.id)
+                .collection('replies')
+                .where('uid', isEqualTo: uid)
+                .limit(1)
+                .get();
+            if (repliesSnap.docs.isNotEmpty) {
+              parentTweets.add(TweetModel.fromDoc(tdoc));
+            }
+          } catch (_) {
+            // ignore per-tweet errors and continue
+          }
+        }
+      } catch (_) {}
+
+      yield parentTweets;
+    }
+
+    final controller = StreamController<List<TweetModel>>.broadcast();
+    StreamSubscription? innerSub;
+
+    controller.onListen = () async {
+      try {
+        await repliesQuery.limit(1).get();
+        final stream = repliesQuery.snapshots().asyncMap((snap) async {
+          // reuse mapping logic
+          final docs = snap.docs.toList();
+          docs.sort((a, b) {
+            final aTs = a.data()['createdAt'];
+            final bTs = b.data()['createdAt'];
+            final aDate = aTs is Timestamp ? aTs.toDate() : DateTime.tryParse(aTs?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+            final bDate = bTs is Timestamp ? bTs.toDate() : DateTime.tryParse(bTs?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+            return bDate.compareTo(aDate);
+          });
+          final parentIds = <String>{};
+          for (final doc in docs) {
+            final parent = doc.reference.parent.parent;
+            if (parent != null) parentIds.add(parent.id);
+          }
+          final futures = parentIds.map((id) async {
+            final doc = await FirebaseFirestore.instance.collection('tweets').doc(id).get();
+            return doc.exists ? TweetModel.fromDoc(doc) : null;
+          }).toList();
+          final results = await Future.wait(futures);
+          return results.whereType<TweetModel>().toList();
+        });
+
+        innerSub = stream.listen((list) {
+          if (!controller.isClosed) controller.add(list);
+        }, onError: (e, st) {
+          if (!controller.isClosed) controller.addError(e, st);
+        });
+      } catch (_) {
+        // fallback: scan tweets
+        final stream2 = FirebaseFirestore.instance.collection('tweets').snapshots().asyncMap((snap) async {
+          final parentTweets = <TweetModel>[];
+          try {
+            for (final tdoc in snap.docs) {
+              try {
+                final repliesSnap = await FirebaseFirestore.instance
+                    .collection('tweets')
+                    .doc(tdoc.id)
+                    .collection('replies')
+                    .where('uid', isEqualTo: uid)
+                    .limit(1)
+                    .get();
+                if (repliesSnap.docs.isNotEmpty) {
+                  parentTweets.add(TweetModel.fromDoc(tdoc));
+                }
+              } catch (_) {}
+            }
+          } catch (_) {}
+          return parentTweets;
+        });
+
+        innerSub = stream2.listen((list) {
+          if (!controller.isClosed) controller.add(list);
+        }, onError: (e, st) {
+          if (!controller.isClosed) controller.addError(e, st);
+        });
+      }
+    };
+
+    controller.onCancel = () async {
+      await innerSub?.cancel();
+      innerSub = null;
+    };
+
+    return controller.stream;
   }
 
   Stream<List<TweetModel>> userLikedTweetsStream(String uid) {
     // Fetch all tweets ordered by createdAt and filter client-side by likes containing uid.
     return FirebaseFirestore.instance
-        .collection('tweets')
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snap) {
+      .collection('tweets')
+      .orderBy('createdAt', descending: true)
+      .snapshots()
+      .map((snap) {
       try {
         // ignore: avoid_print
         print('ProfileController.userLikedTweetsStream(all) -> ${snap.docs.length} docs');
       } catch (_) {}
       final all = snap.docs.map((d) => TweetModel.fromDoc(d)).toList();
       return all.where((t) => t.likes.contains(uid)).toList();
-    });
+    }).asBroadcastStream();
   }
 
   Stream<List<TweetModel>> userRetweetedTweetsStream(String uid) {
     // Fetch all tweets ordered by createdAt and filter client-side by retweets containing uid.
     return FirebaseFirestore.instance
-        .collection('tweets')
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snap) {
+      .collection('tweets')
+      .orderBy('createdAt', descending: true)
+      .snapshots()
+      .map((snap) {
       try {
         // ignore: avoid_print
         print('ProfileController.userRetweetedTweetsStream(all) -> ${snap.docs.length} docs');
       } catch (_) {}
       final all = snap.docs.map((d) => TweetModel.fromDoc(d)).toList();
       return all.where((t) => t.retweets.contains(uid)).toList();
-    });
+    }).asBroadcastStream();
   }
 
 

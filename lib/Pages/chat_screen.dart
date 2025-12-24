@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get/get_connect/http/src/utils/utils.dart';
 import 'package:intl/intl.dart';
 import 'package:twitter_clone_app/Pages/user_profile_screen.dart';
 
@@ -113,10 +114,10 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0.4,
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+        elevation: Theme.of(context).appBarTheme.elevation ?? 0.4,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: Theme.of(context).appBarTheme.foregroundColor),
           onPressed: () =>  Get.back(),
         ),
         title: InkWell(
@@ -128,7 +129,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 backgroundImage: widget.profileImage.isNotEmpty
                     ? NetworkImage(widget.profileImage)
                     : null,
-                backgroundColor: Colors.grey.shade300,
+                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
                 child: widget.profileImage.isEmpty
                     ? const Icon(Icons.person, size: 18)
                     : null,
@@ -140,8 +141,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   children: [
                     Text(
                       widget.userName,
-                      style: const TextStyle(
-                        color: Colors.black,
+                      style: TextStyle(
+                        color: Theme.of(context).appBarTheme.foregroundColor,
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                       ),
@@ -149,7 +150,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     Text(
                       '@${widget.userHandle}',
                       style: TextStyle(
-                        color: Colors.grey.shade600,
+                        color: Theme.of(context).appBarTheme.foregroundColor?.withOpacity(0.7),
                         fontSize: 13,
                       ),
                     ),
@@ -161,12 +162,12 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_outline, color: Colors.black),
+            icon: Icon(Icons.info_outline, color: Theme.of(context).appBarTheme.foregroundColor),
             onPressed: () {},
           ),
         ],
       ),
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
         children: [
           // Messages List
@@ -193,7 +194,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           backgroundImage: widget.profileImage.isNotEmpty
                               ? NetworkImage(widget.profileImage)
                               : null,
-                          backgroundColor: Colors.grey.shade300,
+                          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
                           child: widget.profileImage.isEmpty
                               ? const Icon(Icons.person, size: 40)
                               : null,
@@ -209,7 +210,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         Text(
                           '@${widget.userHandle}',
                           style: TextStyle(
-                            color: Colors.grey.shade600,
+                            color: Theme.of(context).appBarTheme.foregroundColor?.withOpacity(0.7),
                             fontSize: 15,
                           ),
                         ),
@@ -217,7 +218,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         Text(
                           'Start a conversation',
                           style: TextStyle(
-                            color: Colors.grey.shade600,
+                            color: Theme.of(context).appBarTheme.foregroundColor?.withOpacity(0.7),
                             fontSize: 15,
                           ),
                         ),
@@ -227,7 +228,12 @@ class _ChatScreenState extends State<ChatScreen> {
                 }
 
                 final messages = snapshot.data!.docs;
-                WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!mounted) return;
+                  try {
+                    _scrollToBottom();
+                  } catch (_) {}
+                });
 
                 return ListView.builder(
                   controller: _scrollController,
@@ -257,9 +263,9 @@ class _ChatScreenState extends State<ChatScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).scaffoldBackgroundColor,
               border: Border(
-                top: BorderSide(color: Colors.grey.shade200),
+                top: BorderSide(color: Theme.of(context).dividerColor),
               ),
             ),
             child: Row(

@@ -40,44 +40,38 @@ class _HomeScreenState extends State<HomeScreen> {
     final usersCollection = FirebaseFirestore.instance.collection('users').snapshots();
 
     return Scaffold(
-      backgroundColor: Colors.black,
-      drawer: AppDrawer(),
+backgroundColor: Theme.of(context).scaffoldBackgroundColor,      drawer: AppDrawer(),
       appBar: AppBar(
         leading: Builder(
           builder: (context) => IconButton(
-            icon: const Icon(Icons.person_4_outlined, color: Colors.black),
+            icon: Icon(Icons.person_4_outlined, color: Theme.of(context).iconTheme.color),
             onPressed: () {
               Scaffold.of(context).openDrawer();
             },
           ),
         ),
-        backgroundColor: Colors.white,
         elevation: 0.4,
         centerTitle: false,
         titleSpacing: 0,
         toolbarHeight: 56,
-        title: const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
+        title: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
             'Home',
             style: TextStyle(
-              color: Colors.black,
+              color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
               fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings, color: Colors.black),
-            onPressed: () => Get.to(() => SettingsScreen()),
-          ),
-        ],
+       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       ),
       body: IndexedStack(
         children: [
           Container(
-            color: Colors.white,
+            color:   Theme.of(context).scaffoldBackgroundColor,
+
             // First listen to users to build a uid->user map, then tweets stream and enrich tweets
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: usersCollection,
@@ -136,13 +130,23 @@ class _HomeScreenState extends State<HomeScreen> {
                           username: username,
                           handle: handle,
                           profileImage: profileImage,
-                          content: t.content,
-                          imageUrl: t.imageUrl,
+                          // If this tweet is a retweet, keep original fields on the model
+                          content: t.isRetweet ? (t.originalContent.isNotEmpty ? t.originalContent : t.content) : t.content,
+                          imageUrl: t.isRetweet ? (t.originalImageUrl.isNotEmpty ? t.originalImageUrl : t.imageUrl) : t.imageUrl,
                           likes: t.likes,
+                          retweets: t.retweets,
                           comments: t.comments,
                           createdAt: t.createdAt,
                           isLiked: t.isLiked,
                           retweetedBy: retweetedBy,
+                          isRetweet: t.isRetweet,
+                          originalTweetId: t.originalTweetId,
+                          originalUsername: t.originalUsername,
+                          originalHandle: t.originalHandle,
+                          originalProfileImage: t.originalProfileImage,
+                          originalContent: t.originalContent,
+                          originalImageUrl: t.originalImageUrl,
+                          originalCreatedAt: t.originalCreatedAt,
                         );
                       }
                       return t;
@@ -196,7 +200,8 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.lightBlueAccent,
+        heroTag: 'home_fab',
+        backgroundColor: Colors.blue,
         shape: const CircleBorder(),
         onPressed: () {
           final contentController = TextEditingController();
@@ -205,7 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
           showModalBottomSheet(
             context: context,
             isScrollControlled: true,
-            backgroundColor: Colors.white,
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
             ),
@@ -277,7 +282,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           );
         },
-        child: const Icon(Icons.create, color: Colors.white),
+        child: Icon(Icons.create, color: Colors.white),
       ),
     );
   }

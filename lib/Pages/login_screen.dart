@@ -4,12 +4,15 @@ import 'package:twitter_clone_app/Route/route.dart';
 import 'package:twitter_clone_app/controller/login_controller.dart';
 
 class LoginScreen extends GetView<LoginController> {
-  const LoginScreen({super.key});
+   LoginScreen({super.key});
+
+   @override
+     final LoginController controller = Get.find<LoginController>();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       resizeToAvoidBottomInset: true,
       body: Center(
         child: SafeArea(
