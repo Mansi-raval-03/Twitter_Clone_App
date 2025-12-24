@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum NotificationType { reply, mention, retweet, like, follow, system }
+enum NotificationType { reply, mention, retweet, like, follow, message, system }
 
 class AppNotification {
   final String id;
@@ -186,11 +188,61 @@ class NotificationController extends GetxController {
         return 'Retweeted';
       case NotificationType.like:
         return 'Someone liked your tweet';
+      case NotificationType.message:
+        return 'New message';
       case NotificationType.follow:
         return 'New follower';
       case NotificationType.system:
       return 'Notice';
     }
+  }
+
+  // Firestore listener subscription stored on the controller instance
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _firestoreSub;
+}
+
+// Extend controller to listen to Firestore notifications for current user
+extension NotificationControllerFirestore on NotificationController {
+
+  void startFirestoreListener(String userId) {
+    this._firestoreSub = FirebaseFirestore.instance
+        .collection('notifications')
+        .where('to', isEqualTo: userId)
+        .orderBy('time', descending: true)
+        .snapshots()
+        .listen((snap) {
+      final list = snap.docs.map((d) {
+        final data = d.data();
+        final typeStr = (data['type'] ?? '').toString();
+        NotificationType type = NotificationType.system;
+        try {
+          type = NotificationType.values.firstWhere((v) => describeEnum(v) == typeStr);
+        } catch (_) {}
+
+        return AppNotification(
+          id: d.id,
+          title: data['title']?.toString() ?? NotificationController._titleForType(type),
+          body: data['body']?.toString() ?? '',
+          time: (data['time'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          type: type,
+          read: data['read'] == true,
+          meta: (data['meta'] as Map<String, dynamic>?) ?? {},
+        );
+      }).toList();
+
+      // Update local list
+      notifications
+        ..clear()
+        ..addAll(list);
+      update();
+    }, onError: (e) {
+      debugPrint('Notification listener error: $e');
+    });
+  }
+
+  void stopFirestoreListener() {
+    this._firestoreSub?.cancel();
+    this._firestoreSub = null;
   }
 }
 

@@ -10,6 +10,7 @@ import 'package:twitter_clone_app/tweet/tweet_card.dart';
 import 'package:twitter_clone_app/tweet/tweet_model.dart';
 import 'package:twitter_clone_app/controller/profile_controller.dart';
 import 'package:twitter_clone_app/controller/tab_controller.dart';
+import 'package:twitter_clone_app/utils/image_resolver.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String? viewedUserId; // if null, show current signed-in user
@@ -52,7 +53,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         SizedBox(
           height: 250,
           width: double.infinity,
-          child: coverImage.isNotEmpty ? _buildCoverWidget(coverImage) : Container(color: Theme.of(context).dividerColor),
+          child: coverImage.isNotEmpty ? _buildCoverWidget(coverImage) : Container(color: Theme.of(context).shadowColor),
         ),
 
         // Avatar and Edit button
@@ -133,27 +134,51 @@ class _ProfileScreenState extends State<ProfileScreen>
 
 
   Widget _buildCoverWidget(String coverPath) {
-    // If it's an http url use it directly; otherwise try to resolve via Firebase Storage
-    if (coverPath.trim().startsWith('http')) return Image.network(coverPath, fit: BoxFit.cover, width: double.infinity);
+    // If it's an http or data URI use the resolver; otherwise try to resolve via Firebase Storage
+    final trimmed = coverPath.trim();
+    if (trimmed.isEmpty) return Container(color: Theme.of(context).dividerColor);
+
+    if (trimmed.startsWith('http') || trimmed.startsWith('data:')) {
+      final provider = resolveImageProvider(trimmed);
+      if (provider == null) return Container(color: Theme.of(context).dividerColor);
+      return Image(image: provider, fit: BoxFit.cover, width: double.infinity);
+    }
 
     return FutureBuilder<String?>(future: _profileCtrl.resolveImageUrl(coverPath), builder: (context, snap) {
       if (snap.connectionState == ConnectionState.waiting) return Container(color: context.theme.dividerColor);
       final url = snap.data;
       if (url == null || url.isEmpty) return Container(color: Theme.of(context).dividerColor);
-      return Image.network(url, fit: BoxFit.cover, width: double.infinity);
+      final provider = resolveImageProvider(url);
+      if (provider == null) return Container(color: Theme.of(context).dividerColor);
+      return Image(image: provider, fit: BoxFit.cover, width: double.infinity);
     });
   }
 
   Widget _buildAvatarWidget(String profilePath) {
-    if (profilePath.trim().isEmpty) return const CircleAvatar(radius: 48, child: Icon(Icons.person, size: 40));
-    if (profilePath.trim().startsWith('http')) return CircleAvatar(radius: 48, backgroundImage: NetworkImage(profilePath));
+    final trimmed = profilePath.trim();
+    if (trimmed.isEmpty) return const CircleAvatar(radius: 48, child: Icon(Icons.person_outline, size: 40));
 
-    return FutureBuilder<String?>(future: _profileCtrl.resolveImageUrl(profilePath), builder: (context, snap) {
-      if (snap.connectionState == ConnectionState.waiting) return const CircleAvatar(radius: 48);
-      final url = snap.data;
-      if (url == null || url.isEmpty) return const CircleAvatar(radius: 48, child: Icon(Icons.person, size: 40));
-      return CircleAvatar(radius: 48, backgroundImage: NetworkImage(url));
-    });
+    // If http or data URI, use resolver directly
+    if (trimmed.startsWith('http') || trimmed.startsWith('data:')) {
+      final provider = resolveImageProvider(trimmed);
+      if (provider == null) return const CircleAvatar(radius: 48, child: Icon(Icons.person, size: 40));
+      return CircleAvatar(radius: 48, backgroundImage: provider);
+    }
+
+    // Otherwise try to resolve via Firebase Storage
+    return FutureBuilder<String?>(
+      future: _profileCtrl.resolveImageUrl(profilePath),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const CircleAvatar(radius: 48, backgroundImage: AssetImage('assets/placeholder.png'));
+        }
+        final url = snap.data;
+        if (url == null || url.isEmpty) return const CircleAvatar(radius: 48, child: Icon(Icons.person, size: 40));
+        final provider = resolveImageProvider(url);
+        if (provider == null) return const CircleAvatar(radius: 48, child: Icon(Icons.person, size: 40));
+        return CircleAvatar(radius: 48, backgroundImage: provider);
+      },
+    );
   }
 
   TabBar _buildTabBar(TabController controller) {
@@ -184,9 +209,9 @@ class _ProfileScreenState extends State<ProfileScreen>
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text('Profile',style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),),
-        titleTextStyle: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black, fontSize: 20),
-        iconTheme: IconThemeData(color: Theme.of(context).iconTheme.color ?? Colors.black),
+        title: Text('Profile',style: TextStyle(color: Colors.white),),
+        titleTextStyle: TextStyle(color: Colors.white, fontSize: 20),
+        iconTheme: IconThemeData(color: Colors.white),
         leading: BackButton(onPressed: () {
             Get.to(MainNavigationScreen(user: '', tweets: [], replies: [], initialIndex: 0));
         }),

@@ -14,6 +14,7 @@ import 'package:twitter_clone_app/Widgets/main_navigation.dart';
 import 'package:twitter_clone_app/binding/home_binding.dart';
 import 'package:twitter_clone_app/binding/login_binding.dart';
 import 'package:twitter_clone_app/binding/notification_binding.dart';
+import 'package:twitter_clone_app/controller/notification_controller.dart';
 import 'package:twitter_clone_app/binding/profile_binding.dart';
 import 'package:twitter_clone_app/binding/reset_binding.dart';
 import 'package:twitter_clone_app/binding/search_binding.dart';
@@ -25,6 +26,13 @@ void main() async {
   await Firebase.initializeApp();
 
   final user = FirebaseAuth.instance.currentUser;
+  // If a user is already signed in, register NotificationController
+  // and start the Firestore listener so notifications arrive live.
+  if (user != null) {
+    final notif = NotificationController();
+    Get.put<NotificationController>(notif);
+    notif.startFirestoreListener(user.uid);
+  }
   runApp(MyApp(initialRoute: user != null ? AppRoute.mainNavigation : AppRoute.login));
 }
 

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_connect/http/src/utils/utils.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:twitter_clone_app/Drawer/app_drawer.dart';
 import 'package:twitter_clone_app/Pages/user_profile_screen.dart';
+import 'package:twitter_clone_app/utils/image_resolver.dart';
 import 'package:twitter_clone_app/controller/notification_controller.dart';
 
 class NotificationItem {
@@ -40,11 +41,18 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    Get.put(NotificationController());
+    final controller = Get.put(NotificationController());
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) controller.startFirestoreListener(uid);
   }
 
   @override
   void dispose() {
+    // stop listening when screen disposed
+    try {
+      final c = Get.isRegistered<NotificationController>() ? Get.find<NotificationController>() : null;
+      c?.stopFirestoreListener();
+    } catch (_) {}
     _tabController.dispose();
     super.dispose();
   }
@@ -160,6 +168,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
             username: n.meta?['username']?.toString() ?? '',
             handle: n.meta?['handle']?.toString() ?? '',
             profileImage: n.meta?['profileImage']?.toString() ?? '',
+            tweetContent: n.meta?['tweetContent']?.toString() ?? n.meta?['message']?.toString(),
             timeAgo: n.meta?['timeAgo']?.toString() ?? '',
             isRead: n.read,
             ))
@@ -225,6 +234,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
             username: n.meta?['username']?.toString() ?? '',
             handle: n.meta?['handle']?.toString() ?? '',
             profileImage: n.meta?['profileImage']?.toString() ?? '',
+            tweetContent: n.meta?['tweetContent']?.toString(),
             timeAgo: n.meta?['timeAgo']?.toString() ?? '',
             isRead: n.read,
             ))
@@ -260,6 +270,11 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
         iconData = Icons.chat_bubble_outline;
         iconColor = Colors.lightBlueAccent;
         actionText = 'replied to your Tweet';
+        break;
+      case NotificationType.message:
+        iconData = Icons.email_outlined;
+        iconColor = Colors.lightBlueAccent;
+        actionText = 'sent you a message';
         break;
       case NotificationType.retweet:
         iconData = Icons.repeat;
@@ -312,9 +327,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                     children: [
                       CircleAvatar(
                         radius: 16,
-                        backgroundImage: notification.profileImage.isNotEmpty
-                            ? NetworkImage(notification.profileImage)
-                            : null,
+                        backgroundImage: resolveImageProvider(notification.profileImage),
                         child: notification.profileImage.isEmpty
                             ? const Icon(Icons.person_outline, size: 18)
                             : null,

@@ -115,57 +115,7 @@ class ProfileController extends GetxController {
   Stream<List<TweetModel>> userRepliesStream(String uid) {
     final repliesQuery = FirebaseFirestore.instance.collectionGroup('replies').where('uid', isEqualTo: uid);
 
-    Stream<List<TweetModel>> _mapRepliesQuery(QuerySnapshot<Map<String, dynamic>> snap) async* {
-      // Sort replies client-side by createdAt (desc)
-      final docs = snap.docs.toList();
-      docs.sort((a, b) {
-        final aTs = a.data()['createdAt'];
-        final bTs = b.data()['createdAt'];
-        final aDate = aTs is Timestamp ? aTs.toDate() : DateTime.tryParse(aTs?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bDate = bTs is Timestamp ? bTs.toDate() : DateTime.tryParse(bTs?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
-        return bDate.compareTo(aDate);
-      });
 
-      // Collect parent tweet IDs
-      final parentIds = <String>{};
-      for (final doc in docs) {
-        final parent = doc.reference.parent.parent;
-        if (parent != null) parentIds.add(parent.id);
-      }
-
-      // Fetch parent tweets in parallel
-      final futures = parentIds.map((id) async {
-        final doc = await FirebaseFirestore.instance.collection('tweets').doc(id).get();
-        return doc.exists ? TweetModel.fromDoc(doc) : null;
-      }).toList();
-
-      final results = await Future.wait(futures);
-      yield results.whereType<TweetModel>().toList();
-    }
-
-    Stream<List<TweetModel>> _mapTweetsScan(QuerySnapshot<Map<String, dynamic>> snap) async* {
-      final parentTweets = <TweetModel>[];
-      try {
-        for (final tdoc in snap.docs) {
-          try {
-            final repliesSnap = await FirebaseFirestore.instance
-                .collection('tweets')
-                .doc(tdoc.id)
-                .collection('replies')
-                .where('uid', isEqualTo: uid)
-                .limit(1)
-                .get();
-            if (repliesSnap.docs.isNotEmpty) {
-              parentTweets.add(TweetModel.fromDoc(tdoc));
-            }
-          } catch (_) {
-            // ignore per-tweet errors and continue
-          }
-        }
-      } catch (_) {}
-
-      yield parentTweets;
-    }
 
     final controller = StreamController<List<TweetModel>>.broadcast();
     StreamSubscription? innerSub;

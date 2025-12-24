@@ -2,10 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_connect/http/src/utils/utils.dart';
 import 'package:twitter_clone_app/Drawer/app_drawer.dart';
 import 'package:twitter_clone_app/Pages/chat_screen.dart';
 import 'package:twitter_clone_app/Pages/user_profile_screen.dart';
+import 'package:twitter_clone_app/utils/image_resolver.dart';
 // Real data only: remove local mock/random user data
 
 class MessagesScreen extends StatefulWidget {
@@ -55,9 +55,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
       if (currentUser != null) {
         try {
-          // Load only conversations that include the current user.
+          // Load chats that include the current user. Using `chats` collection
+          // because message flow writes there (see ChatScreen).
           final convSnapshot = await FirebaseFirestore.instance
-              .collection('conversations')
+              .collection('chats')
               .where('participants', arrayContains: currentUser.uid)
               .get();
 
@@ -78,8 +79,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
               'username': otherData['username'] ?? otherData['name'] ?? 'User',
               'handle': otherData['handle'] ?? (otherData['email'] != null ? otherData['email'].toString().split('@')[0] : 'user'),
               'profileImage': otherData['profileImage'] ?? otherData['photoURL'] ?? '',
+              // Chat doc uses `lastMessage` and `lastMessageTime`
               'lastMessage': (data['lastMessage'] ?? '') as String,
-              'lastMessageTime': _formatLastMessageTime((data['lastMessageTimestamp'] as Timestamp?)),
+              'lastMessageTime': _formatLastMessageTime((data['lastMessageTime'] as Timestamp?)),
               'isOnline': otherData['isOnline'] ?? false,
             });
           }
@@ -341,13 +343,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
               onTap: () => _openProfile(user),
               child: Stack(
                 children: [
-                  CircleAvatar(
-                    radius: 28,
-                    backgroundImage: user['profileImage'].isNotEmpty
-                        ? NetworkImage(user['profileImage'])
-                        : null,
+                    CircleAvatar(
+                      radius: 28,
+                      backgroundImage: resolveImageProvider(user['profileImage']),
                     backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                    child: user['profileImage'].isEmpty
+                    child: (user['profileImage'] == null || user['profileImage'].toString().isEmpty)
                         ? Icon(Icons.person, size: 32, color: Theme.of(context).iconTheme.color)
                         : null,
                   ),
@@ -536,7 +536,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       leading: CircleAvatar(
                         radius: 24,
                         backgroundImage: user['profileImage'].isNotEmpty
-                            ? NetworkImage(user['profileImage'])
+                              ? resolveImageProvider(user['profileImage'])
                             : null,
                         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
                         child: user['profileImage'].isEmpty

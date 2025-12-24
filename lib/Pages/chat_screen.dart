@@ -2,9 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_connect/http/src/utils/utils.dart';
 import 'package:intl/intl.dart';
 import 'package:twitter_clone_app/Pages/user_profile_screen.dart';
+import 'package:twitter_clone_app/utils/image_resolver.dart';
 
 class ChatScreen extends StatefulWidget {
   final String userId;
@@ -69,6 +69,30 @@ class _ChatScreenState extends State<ChatScreen> {
         'lastSenderId': currentUser.uid,
       }, SetOptions(merge: true));
 
+      // Write a notification document for the receiver so their client
+      // (and NotificationController listener) can pick it up.
+      try {
+        final now = DateTime.now();
+        await FirebaseFirestore.instance.collection('notifications').add({
+          'to': widget.userId,
+          'from': currentUser.uid,
+          'title': 'New message',
+          'body': message,
+          'time': FieldValue.serverTimestamp(),
+          'type': 'message',
+          'read': false,
+          'meta': {
+            'username': currentUser.displayName ?? '',
+            'handle': currentUser.email != null ? currentUser.email!.split('@')[0] : '',
+            'profileImage': currentUser.photoURL ?? '',
+            'message': message,
+            'timeAgo': DateFormat('h:mm a').format(now),
+          },
+        });
+      } catch (e) {
+        debugPrint('Failed to write notification: $e');
+      }
+
       _scrollToBottom();
     } catch (e) {
       debugPrint('Error sending message: $e');
@@ -125,10 +149,8 @@ class _ChatScreenState extends State<ChatScreen> {
           child: Row(
             children: [
               CircleAvatar(
-                radius: 16,
-                backgroundImage: widget.profileImage.isNotEmpty
-                    ? NetworkImage(widget.profileImage)
-                    : null,
+                    radius: 16,
+                    backgroundImage: resolveImageProvider(widget.profileImage),
                 backgroundColor: Theme.of(context).scaffoldBackgroundColor,
                 child: widget.profileImage.isEmpty
                     ? const Icon(Icons.person, size: 18)
@@ -191,9 +213,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       children: [
                         CircleAvatar(
                           radius: 40,
-                          backgroundImage: widget.profileImage.isNotEmpty
-                              ? NetworkImage(widget.profileImage)
-                              : null,
+                          backgroundImage: resolveImageProvider(widget.profileImage),
                           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
                           child: widget.profileImage.isEmpty
                               ? const Icon(Icons.person, size: 40)
@@ -318,9 +338,7 @@ class _ChatScreenState extends State<ChatScreen> {
           if (!isMe) ...[
             CircleAvatar(
               radius: 14,
-              backgroundImage: widget.profileImage.isNotEmpty
-                  ? NetworkImage(widget.profileImage)
-                  : null,
+              backgroundImage: resolveImageProvider(widget.profileImage),
               backgroundColor: Colors.grey.shade300,
               child: widget.profileImage.isEmpty
                   ? const Icon(Icons.person, size: 14)

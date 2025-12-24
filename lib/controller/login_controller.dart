@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:twitter_clone_app/Route/route.dart';
+import 'package:twitter_clone_app/controller/notification_controller.dart';
 
 class LoginController extends GetxController {
   final emailController = TextEditingController();
@@ -38,6 +39,19 @@ class LoginController extends GetxController {
 
       if (userCredential.user != null) {
         Get.snackbar('Success', 'Login successful');
+        // Ensure NotificationController is running and listening for this user
+        final uid = _auth.currentUser?.uid;
+        if (uid != null) {
+          if (!Get.isRegistered<NotificationController>()) {
+            final notif = NotificationController();
+            Get.put<NotificationController>(notif);
+            notif.startFirestoreListener(uid);
+          } else {
+            try {
+              Get.find<NotificationController>().startFirestoreListener(uid);
+            } catch (_) {}
+          }
+        }
         Get.offAllNamed(AppRoute.mainNavigation);
       }
     } on FirebaseAuthException catch (e) {
@@ -93,6 +107,19 @@ class LoginController extends GetxController {
 
       // Navigate on success
       Get.snackbar('Success', 'Google Sign-In successful');
+      // Ensure NotificationController is running and listening for this user
+      final uid = _auth.currentUser?.uid;
+      if (uid != null) {
+        if (!Get.isRegistered<NotificationController>()) {
+          final notif = NotificationController();
+          Get.put<NotificationController>(notif);
+          notif.startFirestoreListener(uid);
+        } else {
+          try {
+            Get.find<NotificationController>().startFirestoreListener(uid);
+          } catch (_) {}
+        }
+      }
       Get.offAllNamed(AppRoute.mainNavigation);
 
     } on FirebaseAuthException catch (e) {

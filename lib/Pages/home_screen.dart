@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'package:twitter_clone_app/Drawer/app_drawer.dart';
-import 'package:twitter_clone_app/Pages/settings_screen.dart';
 import 'package:twitter_clone_app/Pages/user_profile_screen.dart';
 import 'package:twitter_clone_app/Widgets/tweet_composer.dart';
 import 'package:twitter_clone_app/controller/home_conteoller.dart';

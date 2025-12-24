@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:twitter_clone_app/controller/home_conteoller.dart';
 import 'package:twitter_clone_app/tweet/tweet_detail_screen.dart';
 import 'package:twitter_clone_app/tweet/tweet_model.dart';
+import 'package:twitter_clone_app/utils/image_resolver.dart';
 import 'package:twitter_clone_app/services/tweet_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
@@ -79,9 +80,9 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
     final displayHandle = isRetweet
         ? widget.tweet.originalHandle
         : widget.tweet.handle;
-    final displayProfileImage = isRetweet
-        ? widget.tweet.originalProfileImage
-        : widget.tweet.profileImage;
+    // Show the retweeter's avatar in the card header. The original author's
+    // details (username/handle/content) are shown in the body when `isRetweet`.
+    final displayProfileImage = widget.tweet.profileImage;
     final displayContent = isRetweet
         ? widget.tweet.originalContent
         : widget.tweet.content;
@@ -125,9 +126,7 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             CircleAvatar(
-              backgroundImage: displayProfileImage.isNotEmpty
-                  ? NetworkImage(displayProfileImage)
-                  : null,
+              backgroundImage: resolveImageProvider(displayProfileImage),
               radius: 20,
               child: displayProfileImage.isEmpty
                   ? const Icon(Icons.person_outline)

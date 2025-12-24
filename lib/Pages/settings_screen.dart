@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:twitter_clone_app/Pages/profile_screen.dart';
 import 'package:twitter_clone_app/Widgets/main_navigation.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:twitter_clone_app/Pages/edit_profile.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -18,12 +16,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
 
-  Future<Map<String, dynamic>> _loadUserData() async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) return {};
-    final doc = await _firestore.collection('users').doc(uid).get();
-    return doc.data() ?? {};
-  }
 
   void _openAccount() async {
     final uid = _auth.currentUser?.uid;
