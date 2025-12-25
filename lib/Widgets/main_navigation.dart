@@ -52,32 +52,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         onTap: (index) {
           setState(() => _currentIndex = index);
         },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-            backgroundColor: Colors.grey,
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            label: 'Explore',
-            backgroundColor: Colors.grey,
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notifications),
-            label: 'Notifications',
-            backgroundColor: Colors.grey,
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.mail),
-            label: 'Messages',
-            backgroundColor: Colors.grey,
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-            backgroundColor: Colors.grey,
-          ),
+        type: BottomNavigationBarType.shifting,
+
+        selectedItemColor: Theme.of(context).textTheme.bodyLarge?.color,
+        unselectedItemColor: Theme.of(context).textTheme.bodyMedium?.color,
+        items:  [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home', backgroundColor: Theme.of(context).bottomAppBarTheme.color),
+          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Explore', backgroundColor: Theme.of(context).bottomAppBarTheme.color),
+          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Notifications', backgroundColor: Theme.of(context).bottomAppBarTheme.color),
+          BottomNavigationBarItem(icon: Icon(Icons.mail), label: 'Messages', backgroundColor: Theme.of(context).bottomAppBarTheme.color),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile', backgroundColor: Theme.of(context).bottomAppBarTheme.color),
         ],
       ),
     );

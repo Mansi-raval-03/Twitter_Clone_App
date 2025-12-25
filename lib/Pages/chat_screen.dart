@@ -123,14 +123,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _openProfile() {
     Get.to(() => UserProfileScreen(
-          userName: widget.userName,
-          userHandle: widget.userHandle,
-          userBio: 'Bio unavailable',
-          profileImageUrl: widget.profileImage,
-          coverImageUrl: '',
-          followersCount: 1200,
-          followingCount: 300,
-          tweetsCount: 540,
+      viewedUserId: widget.userId,
         ));
   }
 

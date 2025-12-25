@@ -254,20 +254,13 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildAction(
+                        _buildAction(
                         Icons.chat_bubble_outline,
                         _repliesCount,
                         () {
-                          // Open detail screen to reply
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  TweetDetailScreen(tweet: widget.tweet),
-                            ),
-                          );
+                         Get.to(() => TweetDetailScreen(tweet: widget.tweet));
                         },
-                      ),
+                        ),
                       _buildAction(
                         Icons.repeat,
                         _retweetsCount,

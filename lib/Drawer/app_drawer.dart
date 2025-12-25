@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:twitter_clone_app/controller/profile_controller.dart';
+import 'package:twitter_clone_app/utils/image_resolver.dart';
 import 'package:twitter_clone_app/Pages/book_marks_screen.dart';
 import 'package:twitter_clone_app/Route/route.dart';
 import 'package:twitter_clone_app/Pages/settings_screen.dart';
@@ -89,15 +90,29 @@ class AppDrawer extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundImage: (user != null && user.profileImage.isNotEmpty)
-                        ? NetworkImage(user.profileImage)
-                        : null,
-                    child: (user == null || user.profileImage.isEmpty)
-                        ? const Icon(Icons.person, size: 32)
-                        : null,
-                  ),
+                  Builder(builder: (ctx) {
+                    final img = user?.profileImage.toString() ?? '';
+                    final trimmed = img.trim();
+                    if (trimmed.isEmpty) {
+                      return const CircleAvatar(radius: 30, child: Icon(Icons.person, size: 32));
+                    }
+
+                    if (trimmed.startsWith('http') || trimmed.startsWith('data:')) {
+                      final provider = resolveImageProvider(trimmed);
+                      return CircleAvatar(radius: 30, backgroundImage: provider, child: provider == null ? const Icon(Icons.person, size: 32) : null);
+                    }
+
+                    return FutureBuilder<String?>(
+                      future: _profileController.resolveImageUrl(trimmed),
+                      builder: (c, s) {
+                        if (s.connectionState == ConnectionState.waiting) return const CircleAvatar(radius: 30, child: CircularProgressIndicator());
+                        final url = s.data;
+                        if (url == null || url.isEmpty) return const CircleAvatar(radius: 30, child: Icon(Icons.person, size: 32));
+                        final provider = resolveImageProvider(url);
+                        return CircleAvatar(radius: 30, backgroundImage: provider, child: provider == null ? const Icon(Icons.person, size: 32) : null);
+                      },
+                    );
+                  }),
                   const SizedBox(height: 12),
                   Text(
                     user?.name ?? 'Guest',

@@ -8,6 +8,8 @@ import 'package:twitter_clone_app/Pages/user_profile_screen.dart';
 import 'package:twitter_clone_app/tweet/tweet_model.dart';
 import 'package:twitter_clone_app/tweet/reply_model.dart';
 import 'package:twitter_clone_app/services/tweet_service.dart';
+import 'package:twitter_clone_app/services/database_services.dart';
+import 'package:twitter_clone_app/controller/profile_controller.dart';
 import 'package:twitter_clone_app/utils/image_resolver.dart';
 
 class TweetDetailScreen extends StatefulWidget {
@@ -21,6 +23,7 @@ class TweetDetailScreen extends StatefulWidget {
 
 class _TweetDetailScreenState extends State<TweetDetailScreen> {
   bool isFollowing = false;
+  final ProfileController _profileCtrl = Get.put(ProfileController());
 
   @override
   void initState() {
@@ -28,6 +31,12 @@ class _TweetDetailScreenState extends State<TweetDetailScreen> {
     // Check if current user has liked the passed tweet snapshot
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     if (currentUserId != null) {
+      // check following state for tweet author
+      final authorUid = widget.tweet.uid;
+      DatabaseServices.isFollowing(currentUserId, authorUid).then((v) {
+        if (!mounted) return;
+        setState(() => isFollowing = v);
+      });
     }
   }
 
@@ -45,9 +54,12 @@ class _TweetDetailScreenState extends State<TweetDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tweet'),
+        title: const Text('Post'),
         elevation: 0.5,
         centerTitle: false,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        iconTheme: IconThemeData(color: Theme.of(context).textTheme.bodyLarge?.color),
+        titleTextStyle: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontSize: 20),
       ),
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance.collection('tweets').doc(widget.tweet.id).snapshots(),
@@ -72,47 +84,78 @@ class _TweetDetailScreenState extends State<TweetDetailScreen> {
                         children: [
                           Padding(
                             padding: const EdgeInsets.all(16),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                          GestureDetector(
-                            onTap: () => Get.to(() => UserProfileScreen(
-                                  userName: displayUsername,
-                                  userHandle: displayHandle.replaceAll('@', ''),
-                                  userBio: '',
-                                  profileImageUrl: displayProfileImage,
-                                  coverImageUrl: '',
-                                  followersCount: 0,
-                                  followingCount: 0,
-                                  tweetsCount: 0,
-                                )),
-                            child: _buildAvatar(displayProfileImage, radius: 26),
-                          ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
+                            child: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                              future: FirebaseFirestore.instance.collection('users').doc(tweet.uid).get(),
+                              builder: (ctx, userSnap) {
+                                final udata = userSnap.data?.data();
+                                final authorName = (udata?['name'] as String?)?.trim().isNotEmpty == true ? udata!['name'].toString() : displayUsername;
+                                final rawHandle = (udata?['username'] as String?)?.toString() ?? displayHandle;
+                                final authorHandle = rawHandle.startsWith('@') ? rawHandle : '@$rawHandle';
+                                final authorProfileImage = (udata?['profileImage'] as String?)?.toString() ?? displayProfileImage;
+
+                                return Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    GestureDetector(
+                                      onTap: () => Get.to(() => UserProfileScreen(viewedUserId: tweet.uid)),
+                                      child: _buildAvatar(authorProfileImage, radius: 28),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                          Text(displayUsername, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16), overflow: TextOverflow.ellipsis),
+                                          Text(authorName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18), overflow: TextOverflow.ellipsis),
                                           const SizedBox(height: 4),
-                                          Text(displayHandle, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
-                                              ],
-                                            ),
-                                          ),
+                                          Text(authorHandle, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+                                          const SizedBox(height: 8),
+                                          Text(_formatDate(displayCreatedAt), style: TextStyle(color: Colors.grey[600], fontSize: 13)),
                                         ],
                                       ),
-                                      const SizedBox(height: 8),
-                                Text(_formatDate(displayCreatedAt), style: TextStyle(color: Colors.grey[600], fontSize: 13)),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Builder(builder: (ctx2) {
+                                      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+                                      if (currentUid == null || currentUid == tweet.uid) return const SizedBox.shrink();
+
+                                      if (isFollowing) {
+                                        return OutlinedButton(
+                                          style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.blue), shape: const StadiumBorder(), foregroundColor: Colors.blue),
+                                          onPressed: () async {
+                                            await DatabaseServices.unfollowUser(currentUid, tweet.uid);
+                                            if (!mounted) return;
+                                            setState(() => isFollowing = false);
+                                          },
+                                          child: const Text('Following'),
+                                        );
+                                      }
+
+                                      return ElevatedButton(
+                                        style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, shape: const StadiumBorder(), foregroundColor: Colors.white),
+                                        onPressed: () async {
+                                          final curData = _profileCtrl.userProfile.value;
+                                          final curMap = {
+                                            'uid': curData?.uid ?? currentUid,
+                                            'username': curData?.username ?? '',
+                                            'name': curData?.name ?? '',
+                                            'profileImage': curData?.profileImage ?? '',
+                                          };
+                                          final targetMap = {
+                                            'uid': tweet.uid,
+                                            'username': rawHandle,
+                                            'name': authorName,
+                                            'profileImage': authorProfileImage,
+                                          };
+                                          await DatabaseServices.followUser(currentUid, curMap, tweet.uid, targetMap);
+                                          if (!mounted) return;
+                                          setState(() => isFollowing = true);
+                                        },
+                                        child: const Text('Follow'),
+                                      );
+                                    }),
+                                  ],
+                                );
+                              },
                             ),
                           ),
 

@@ -298,14 +298,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
     return InkWell(
       onTap: () {
         Get.to(UserProfileScreen(
-          userName: notification.username,
-          userHandle: notification.handle,
-          userBio: 'User bio',
-          profileImageUrl: notification.profileImage,
-          coverImageUrl: '',
-          followersCount: 0,
-          followingCount: 0,
-          tweetsCount: 0,
+          viewedUserId: notification.handle,
         ));
       },
       child: Container(

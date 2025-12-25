@@ -438,29 +438,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   void _openProfile(Map<String, dynamic> user) {
     Get.to(() => UserProfileScreen(
-          userName: user['username'],
-          userHandle: user['handle'],
-          userBio: 'Bio unavailable',
-          profileImageUrl: user['profileImage'],
-          coverImageUrl: '',
-          followersCount: (() {
-            final v = user['followers'];
-            if (v is int) return v;
-            if (v is num) return v.toInt();
-            return int.tryParse(v?.toString() ?? '') ?? 1200;
-          })(),
-          followingCount: (() {
-            final v = user['following'];
-            if (v is int) return v;
-            if (v is num) return v.toInt();
-            return int.tryParse(v?.toString() ?? '') ?? 300;
-          })(),
-          tweetsCount: (() {
-            final v = user['tweets'];
-            if (v is int) return v;
-            if (v is num) return v.toInt();
-            return int.tryParse(v?.toString() ?? '') ?? 540;
-          })(),
+          viewedUserId: user['id'],
         ));
   }
 

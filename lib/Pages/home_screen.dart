@@ -177,14 +177,7 @@ backgroundColor: Theme.of(context).scaffoldBackgroundColor,      drawer: AppDraw
                         return GestureDetector(
                           onTap: () {
                            Get.to(() => UserProfileScreen(
-                              userName: tweet.username,
-                              userHandle: tweet.handle,
-                              userBio: '',
-                              profileImageUrl: tweet.profileImage,
-                              coverImageUrl: '',
-                              followersCount: 0,
-                              followingCount: 0,
-                              tweetsCount: 0,
+                                viewedUserId: tweet.uid,
                             ));
                           },
                           child: TweetCardWidget(tweet: tweet),
