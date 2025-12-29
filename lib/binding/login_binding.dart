@@ -4,7 +4,7 @@ import 'package:twitter_clone_app/controller/login_controller.dart';
 class LoginBinding extends Bindings {
   @override
   void dependencies() {
-   
-    Get.lazyPut<LoginController>(() => LoginController(), fenix: true);
+    /// Create a fresh controller per usage; avoid permanent singleton so Form GlobalKey is not reused simultaneously
+    Get.put<LoginController>(LoginController());
   }
 }

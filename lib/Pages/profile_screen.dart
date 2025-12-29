@@ -3,9 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:twitter_clone_app/Drawer/app_drawer.dart';
 import 'package:twitter_clone_app/Pages/edit_profile.dart';
 import 'package:twitter_clone_app/Pages/follow_list_page.dart';
-import 'package:twitter_clone_app/Widgets/main_navigation.dart';
 import 'package:twitter_clone_app/tweet/tweet_card.dart';
 import 'package:twitter_clone_app/tweet/tweet_model.dart';
 import 'package:twitter_clone_app/controller/profile_controller.dart';
@@ -21,7 +21,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen>
-    with TickerProviderStateMixin {
+{
   
   final ProfileController _profileCtrl = Get.put(ProfileController());
 
@@ -51,30 +51,35 @@ class _ProfileScreenState extends State<ProfileScreen>
       children: [
         // Cover
         SizedBox(
-          height: 250,
-          width: double.infinity,
-          child: coverImage.isNotEmpty ? _buildCoverWidget(coverImage) : Container(color: Theme.of(context).shadowColor),
+          height: Get.height * 0.2,
+          width: Get.width,
+          child: coverImage.isNotEmpty ? _buildCoverWidget(coverImage) : Container(color: Colors.grey.shade300),
         ),
 
         // Avatar and Edit button
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Transform.translate(
                 offset: const Offset(0, -20),
-                child: Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Theme.of(context).shadowColor, width: 2),
-                    boxShadow: [
-                      BoxShadow(color: Theme.of(context).shadowColor, blurRadius: 6, offset: const Offset(0, 3)),
-                    ],
+                child: SizedBox(
+                  width: 96,
+                  height: 96,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Theme.of(context).shadowColor, width: 2),
+                      boxShadow: [
+                        BoxShadow(color: Theme.of(context).shadowColor, blurRadius: 6, offset: const Offset(0, 3)),
+                      ],
+                    ),
+                      child: _buildAvatarWidget(profileImage),
                   ),
-                    child: _buildAvatarWidget(profileImage),
                 ),
               ),
-              SizedBox(width: 150),
+              const Spacer(),
               if (FirebaseAuth.instance.currentUser?.uid == uid)
                 OutlinedButton(
                   onPressed: () async {
@@ -94,7 +99,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             children: [
               Text(name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
-              Text('@$username', style: TextStyle(color: Colors.grey.shade600)),
+              Text('@$username', style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color)),
               const SizedBox(height: 8),
               if (bio.isNotEmpty) Text(bio),
           const SizedBox(height: 8),
@@ -201,25 +206,87 @@ class _ProfileScreenState extends State<ProfileScreen>
   Widget build(BuildContext context) {
     final uid = _effectiveUid;
     if (uid == null || uid.isEmpty) {
-      return const Scaffold(body: Center(child: Text('No signed in user')));
+      return Scaffold(
+        appBar: AppBar(title: Text('Profile')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.person_off_outlined, size: 64, color: Theme.of(context).iconTheme.color),
+              SizedBox(height: 16),
+              Text('No signed in user', style: TextStyle(fontSize: 18)),
+              SizedBox(height: 8),
+              Text(
+                'Please sign in to view your profile',
+                style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     return Scaffold(
       extendBodyBehindAppBar: true,
+      drawer: AppDrawer(),
       appBar: AppBar(
+        
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text('Profile',style: TextStyle(color: Colors.white),),
-        titleTextStyle: TextStyle(color: Colors.white, fontSize: 20),
-        iconTheme: IconThemeData(color: Colors.white),
-        leading: BackButton(onPressed: () {
-            Get.to(MainNavigationScreen(user: '', tweets: [], replies: [], initialIndex: 0));
-        }),
+        title: Text('Profile',style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),),
+        titleTextStyle: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontSize: 20),
+        iconTheme: IconThemeData(color: Theme.of(context).textTheme.bodyLarge?.color),
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: Icon(Icons.menu, color: Theme.of(context).iconTheme.color),
+            onPressed: () {
+              Scaffold.of(context).openDrawer();
+            },
+          ),
+        ),
       ),
   backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         stream: _profileCtrl.userDocStream(uid).asBroadcastStream(),
         builder: (context, snapshot) {
+          // Handle errors
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Theme.of(context).iconTheme.color),
+                  SizedBox(height: 16),
+                  Text('Error loading profile', style: TextStyle(fontSize: 18, color: Theme.of(context).textTheme.bodyLarge?.color)),
+                  SizedBox(height: 8),
+                  Text(
+                    'Please try again later',
+                    style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // Handle user not found
+          if (snapshot.hasData && !snapshot.data!.exists) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.person_off_outlined, size: 64, color: Theme.of(context).iconTheme.color),
+                  SizedBox(height: 16),
+                  Text('Profile not found', style: TextStyle(fontSize: 18)),
+                  SizedBox(height: 8),
+                  Text(
+                    'Your profile needs to be set up',
+                    style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color),
+                  ),
+                ],
+              ),
+            );
+          }
+
           final data = snapshot.data?.data();
           ProfileTabController tabControllerCtrl;
           try {
@@ -299,7 +366,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                       return ListView.separated(
                         padding: const EdgeInsets.only(bottom: 80),
                         itemCount: replies.length,
-                        separatorBuilder: (_, __) => Divider(color: Colors.grey.shade300),
+                        separatorBuilder: (_, __) => Divider(color: Theme.of(context).dividerColor),
                         itemBuilder: (_, i) => TweetCardWidget(tweet: replies[i]),
                       );
                     },

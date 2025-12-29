@@ -15,6 +15,7 @@ class ProfileController extends GetxController {
     loadCurrentUser();
   }
 
+  // Load current authenticated user's profile
   Future<void> loadCurrentUser() async {
     isLoading.value = true;
     final firebaseUser = FirebaseAuth.instance.currentUser;
@@ -23,6 +24,7 @@ class ProfileController extends GetxController {
       return;
     }
 
+    // Fetch user document from Firestore 
     final doc = await FirebaseFirestore.instance.collection('users').doc(firebaseUser.uid).get();
 
     if (doc.exists) {
@@ -39,6 +41,7 @@ class ProfileController extends GetxController {
           return int.tryParse(s) ?? 0;
         }
 
+        // Manually map fields
         userProfile.value = UserProfile(
           uid: doc.id,
           name: data['name'] ?? '',

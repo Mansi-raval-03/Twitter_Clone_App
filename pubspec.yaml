@@ -66,11 +66,13 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_launcher_icons:
-
+ 
 flutter_icons:
   android: true
   ios: true
   image_path: "assets/logo.png"
+
+
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -92,12 +94,11 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
 assets:
-  - "assets/LightThemeLogo.png"
-  - "assets/DarkThemeLogo.png"
-  - "assets/google.png"
-  
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  - assets/
+  - assets/LightThemeLogo.svg
+  - assets/DarkThemeLogo.svg
+  - assets/google.png
+
 flutter_native_splash:
   color: "#FFFFFF"
   color_dark: "#121212"
@@ -111,28 +112,82 @@ flutter_native_splash:
     color: "#FFFFFF"
     color_dark: "#121212"
 
-  # An image asset can refer to one or more resolution-specific "variants", see
-  # https://flutter.dev/to/resolution-aware-images
+ 
 
-  # For details regarding adding assets from package dependencies, see
-  # https://flutter.dev/to/asset-from-package
+  
+  fonts:
+    - family: BlackFonts
+      fonts:
+        - asset: assets/fonts/Montserrat-Black.ttf
+    - family: BlackItalic
+      fonts:
+        - asset: assets/fonts/Montserrat-BlackItalic.ttf
+ 
 
-  # To add custom fonts to your application, add a fonts section here,
-  # in this "flutter" section. Each entry in this list should have a
-  # "family" key with the font family name, and a "fonts" key with a
-  # list giving the asset and other descriptors for the font. For
-  # example:
-  # fonts:
-  #   - family: Schyler
-  #     fonts:
-  #       - asset: fonts/Schyler-Regular.ttf
-  #       - asset: fonts/Schyler-Italic.ttf
-  #         style: italic
-  #   - family: Trajan Pro
-  #     fonts:
-  #       - asset: fonts/TrajanPro.ttf
-  #       - asset: fonts/TrajanPro_Bold.ttf
-  #         weight: 700
-  #
-  # For details regarding fonts from package dependencies,
-  # see https://flutter.dev/to/font-from-package
+    - family: BoldFonts
+      fonts:
+        - asset: assets/fonts/Montserrat-Bold.ttf
+
+    - family: BoldItalic
+      fonts:
+        - asset: assets/fonts/Montserrat-BoldItalic.ttf
+
+    - family: ExtraBold
+      fonts:
+        - asset: assets/fonts/Montserrat-ExtraBold.ttf
+
+    - family: ExtraBoldItalic
+      fonts:
+        - asset: assets/fonts/Montserrat-ExtraBoldItalic.ttf
+
+    - family: ExtraLight BETA
+      fonts:
+        - asset: assets/fonts/Montserrat-ExtraLight.ttf
+
+    - family: ExtraLightItalic BETA
+      fonts:
+        - asset: assets/fonts/Montserrat-ExtraLightItalic.ttf
+
+    - family: ItalicFont
+      fonts:
+        - asset: assets/fonts/Montserrat-Italic.ttf
+
+    - family: Light BETA
+      fonts:
+        - asset: assets/fonts/Montserrat-Light.ttf
+
+    - family: LightItalic BETA
+      fonts:
+        - asset: assets/fonts/Montserrat-LightItalic.ttf
+
+    - family: MediumFont
+      fonts:
+        - asset: assets/fonts/Montserrat-Medium.ttf
+
+    - family: MediumItalic
+      fonts:
+        - asset: assets/fonts/Montserrat-MediumItalic.ttf
+
+    - family: RegularFont
+      fonts:
+        - asset: assets/fonts/Montserrat-Regular.ttf
+
+    - family: SemiBold
+      fonts:
+        - asset: assets/fonts/Montserrat-SemiBold.ttf
+
+    - family: SemiBoldItalic
+      fonts:
+        - asset: assets/fonts/Montserrat-SemiBoldItalic.ttf
+
+    - family: Thin BETA
+      fonts:
+        - asset: assets/fonts/Montserrat-Thin.ttf
+
+    - family: ThinItalic BETA
+      fonts:
+        - asset: assets/fonts/Montserrat-ThinItalic.ttf
+
+
+  
+  

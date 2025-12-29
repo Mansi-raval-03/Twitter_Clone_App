@@ -4,6 +4,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/services.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:twitter_clone_app/Route/route.dart';
 import 'package:twitter_clone_app/controller/notification_controller.dart';
 
@@ -16,14 +17,16 @@ class LoginController extends GetxController {
   final isPasswordVisible = false.obs;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: <String>['email'],
   );
-
+  // Toggle password visibility
   void togglePasswordVisibility() {
     isPasswordVisible.toggle();
   }
 
+  // Validate form fields
   Future<void> login() async {
     try {
       isLoading.value = true;
@@ -37,7 +40,11 @@ class LoginController extends GetxController {
         password: password,
       );
 
+      // Navigate on success
       if (userCredential.user != null) {
+        // Ensure user document exists (in case it was deleted)
+        await _ensureUserDocumentExists(userCredential.user!);
+        
         Get.snackbar('Success', 'Login successful');
         // Ensure NotificationController is running and listening for this user
         final uid = _auth.currentUser?.uid;
@@ -54,6 +61,7 @@ class LoginController extends GetxController {
         }
         Get.offAllNamed(AppRoute.mainNavigation);
       }
+      // Handle other cases if needed
     } on FirebaseAuthException catch (e) {
       String errorMessage = 'Login failed';
       if (e.code == 'user-not-found') {
@@ -73,6 +81,7 @@ class LoginController extends GetxController {
     }
   }
 
+  // Google Sign-In
   Future<void> loginWithGoogle() async {
     try {
       isLoading.value = true;
@@ -103,7 +112,13 @@ class LoginController extends GetxController {
       );
 
       // Sign in with Firebase using the Google credential
-      await _auth.signInWithCredential(credential);
+      final userCredential = await _auth.signInWithCredential(credential);
+      
+      // Ensure user document exists in Firestore
+      final user = userCredential.user;
+      if (user != null) {
+        await _ensureUserDocumentExists(user);
+      }
 
       // Navigate on success
       Get.snackbar('Success', 'Google Sign-In successful');
@@ -155,6 +170,38 @@ class LoginController extends GetxController {
     }
   }
 
+  // Ensure user document exists in Firestore (for Google Sign-in or first-time users)
+  Future<void> _ensureUserDocumentExists(User user) async {
+    try {
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      
+      if (!userDoc.exists) {
+        // Create user document if it doesn't exist
+        await _firestore.collection('users').doc(user.uid).set({
+          'uid': user.uid,
+          'name': user.displayName ?? 'User',
+          'email': user.email ?? '',
+          'username': user.displayName ?? user.email?.split('@')[0] ?? 'user',
+          'handle': '@${user.email?.split('@')[0] ?? 'user'}',
+          'bio': '',
+          'location': '',
+          'website': '',
+          'profileImage': user.photoURL ?? '',
+          'profilePicture': user.photoURL ?? '',
+          'coverImage': '',
+          'createdAt': FieldValue.serverTimestamp(),
+          'followers': 0,
+          'following': 0,
+          'posts': 0,
+          'likes': 0,
+        });
+      }
+    } catch (e) {
+      print('Error ensuring user document: $e');
+    }
+  }
+
+  // Field validators
   String? validateEmail(String? value) {
     if (value == null || value.isEmpty) {
       return 'Email is required';
@@ -180,6 +227,8 @@ class LoginController extends GetxController {
 
   @override
   void onClose() {
+    // cleanup if needed
+    
     super.onClose();
   }
 }

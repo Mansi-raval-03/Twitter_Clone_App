@@ -84,7 +84,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
-  final ProfileController _profileCtrl = Get.find();
+  ProfileController? _profileCtrl;
   bool _isSaving = false;
   bool _isUploadingImage = false;
   XFile? _pickedImage;
@@ -119,7 +119,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
             onPressed: _isSaving ? null : _handleSave,
             child: _isSaving
                 ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Save', style: TextStyle(color: Colors.blue, fontSize: 16)),
+                : Text('Save', style: TextStyle(color: Theme.of(context).appBarTheme.foregroundColor, fontSize: 16)),
           ),
         ],
       ),
@@ -206,7 +206,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
       // Refresh controller so profile screen updates
       try {
-        await _profileCtrl.loadCurrentUser();
+        _profileCtrl ??= Get.find<ProfileController>();
+        await _profileCtrl!.loadCurrentUser();
       } catch (_) {}
 
       if (!mounted) return;
@@ -320,7 +321,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       await FirebaseFirestore.instance.collection('users').doc(uid).set({'profileImage': _uploadedProfilePath, 'updatedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
 
       try {
-        await _profileCtrl.loadCurrentUser();
+        await _profileCtrl?.loadCurrentUser();
       } catch (_) {}
 
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile image uploaded')));
@@ -339,12 +340,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (uid == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Not signed in')));
       return;
-    }
+    } 
 
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
     if (picked == null) return;
-
+ 
     setState(() { _isUploadingCover = true; });
 
     try {
@@ -359,7 +360,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       await FirebaseFirestore.instance.collection('users').doc(uid).set({'coverImage': _uploadedCoverPath, 'updatedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
 
       try {
-        await _profileCtrl.loadCurrentUser();
+        await _profileCtrl?.loadCurrentUser();
       } catch (_) {}
 
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cover image uploaded')));

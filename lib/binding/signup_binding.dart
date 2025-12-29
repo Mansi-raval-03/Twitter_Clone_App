@@ -4,7 +4,7 @@ import 'package:twitter_clone_app/controller/signup_controller.dart';
 class SignupBinding extends Bindings {
   @override
   void dependencies() {
-   
-    Get.put(SignupController(), permanent: true);
+    // Create a fresh controller per usage; avoid permanent singleton so Form GlobalKey is not reused simultaneously
+    Get.put<SignupController>(SignupController());
   }
 }

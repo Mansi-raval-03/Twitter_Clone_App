@@ -8,6 +8,7 @@ import 'package:twitter_clone_app/utils/image_resolver.dart';
 import 'package:twitter_clone_app/services/tweet_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class TweetCardWidget extends StatefulWidget {
   final TweetModel tweet;
@@ -19,43 +20,22 @@ class TweetCardWidget extends StatefulWidget {
 }
 
 class _TweetCardWidgetState extends State<TweetCardWidget> {
-  late bool isLiked;
-  late int _likesCount;
-  late int _retweetsCount;
-  late int _repliesCount;
-  late bool _isLiked;
-  late bool _isRetweeted;
+  // Local state for optimistic updates
+  late int _localLikesCount;
+  late int _localRetweetsCount;
+  late bool _localIsLiked;
+  late bool _localIsRetweeted;
+  bool _isProcessingLike = false;
+  bool _isProcessingRetweet = false;
 
   @override
   void initState() {
     super.initState();
-    isLiked = widget.tweet.isLiked;
-    _likesCount = widget.tweet.likes.length;
-    _repliesCount = widget.tweet.comments.length;
-    _retweetsCount = widget.tweet.retweets.length;
-
-    _isLiked = widget.tweet.likes.contains(
-      FirebaseAuth.instance.currentUser?.uid,
-    );
-    _isRetweeted = widget.tweet.retweets.contains(
-      FirebaseAuth.instance.currentUser?.uid,
-    );
-  }
-
-  @override
-  void didUpdateWidget(covariant TweetCardWidget oldWidget) {
-    super.didUpdateWidget(oldWidget);
     final currentUid = FirebaseAuth.instance.currentUser?.uid;
-    // update local counters if parent provided new tweet data
-    if (mounted) {
-      setState(() {
-        _likesCount = widget.tweet.likes.length;
-        _repliesCount = widget.tweet.comments.length;
-        _retweetsCount = widget.tweet.retweets.length;
-        _isLiked = widget.tweet.likes.contains(currentUid);
-        _isRetweeted = widget.tweet.retweets.contains(currentUid);
-      });
-    }
+    _localLikesCount = widget.tweet.likes.length;
+    _localRetweetsCount = widget.tweet.retweets.length;
+    _localIsLiked = widget.tweet.likes.contains(currentUid);
+    _localIsRetweeted = widget.tweet.retweets.contains(currentUid);
   }
 
   String _formatNumber(int number) {
@@ -68,30 +48,112 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
     }
   }
 
+  // Helper function to safely convert Firebase data to List<String>
+  List<String> _safeListConversion(dynamic value) {
+    if (value == null) return [];
+    if (value is List) {
+      return value.map((e) => e.toString()).toList();
+    }
+    if (value is String) return [];
+    return [];
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Use StreamBuilder to listen to real-time updates from Firebase
+    return StreamBuilder<DocumentSnapshot>(
+      stream: TweetService.getTweetStream(widget.tweet.id),
+      builder: (context, snapshot) {
+        // While loading, show the widget with initial data
+        if (!snapshot.hasData) {
+          return _buildTweetCard(context, widget.tweet);
+        }
+
+        // If tweet is deleted, show nothing
+        if (!snapshot.data!.exists) {
+          return const SizedBox.shrink();
+        }
+
+        // Get updated data from Firebase
+        final data = snapshot.data!.data() as Map<String, dynamic>?;
+        if (data == null) {
+          return _buildTweetCard(context, widget.tweet);
+        }
+
+        // Update local state from Firebase if not processing an action
+        final currentUid = FirebaseAuth.instance.currentUser?.uid;
+        final firebaseLikes = _safeListConversion(data['likes']);
+        final firebaseRetweets = _safeListConversion(data['retweets']);
+        
+        if (!_isProcessingLike) {
+          _localLikesCount = firebaseLikes.length;
+          _localIsLiked = firebaseLikes.contains(currentUid);
+        }
+        if (!_isProcessingRetweet) {
+          _localRetweetsCount = firebaseRetweets.length;
+          _localIsRetweeted = firebaseRetweets.contains(currentUid);
+        }
+
+        // Create updated tweet model with real-time data
+        final updatedTweet = TweetModel(
+          id: widget.tweet.id,
+          uid: widget.tweet.uid,
+          username: widget.tweet.username,
+          handle: widget.tweet.handle,
+          profileImage: widget.tweet.profileImage,
+          content: widget.tweet.content,
+          imageUrl: widget.tweet.imageUrl,
+          likes: firebaseLikes,
+          retweets: firebaseRetweets,
+          comments: _safeListConversion(data['comments']),
+          createdAt: widget.tweet.createdAt,
+          isLiked: _localIsLiked,
+          retweetedBy: widget.tweet.retweetedBy,
+          isRetweet: widget.tweet.isRetweet,
+          originalTweetId: widget.tweet.originalTweetId,
+          originalUsername: widget.tweet.originalUsername,
+          originalHandle: widget.tweet.originalHandle,
+          originalProfileImage: widget.tweet.originalProfileImage,
+          originalContent: widget.tweet.originalContent,
+          originalImageUrl: widget.tweet.originalImageUrl,
+          originalCreatedAt: widget.tweet.originalCreatedAt,
+        );
+
+        return _buildTweetCard(context, updatedTweet);
+      },
+    );
+  }
+
+  Widget _buildTweetCard(BuildContext context, TweetModel tweet) {
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    // Use local state for instant UI updates
+    final likesCount = _localLikesCount;
+    final retweetsCount = _localRetweetsCount;
+    final repliesCount = tweet.comments.length;
+    final isLiked = _localIsLiked;
+    final isRetweeted = _localIsRetweeted;
 
     // If this doc is a retweet, display the original tweet's author/content
-    final isRetweet = widget.tweet.isRetweet;
-    final headerRetweeter = isRetweet ? widget.tweet.username : '';
+    final isRetweet = tweet.isRetweet;
+    final headerRetweeter = isRetweet ? tweet.username : '';
     final displayUsername = isRetweet
-        ? widget.tweet.originalUsername
-        : widget.tweet.username;
+        ? tweet.originalUsername
+        : tweet.username;
     final displayHandle = isRetweet
-        ? widget.tweet.originalHandle
-        : widget.tweet.handle;
+        ? tweet.originalHandle
+        : tweet.handle;
     // Show the retweeter's avatar in the card header. The original author's
     // details (username/handle/content) are shown in the body when `isRetweet`.
-    final displayProfileImage = widget.tweet.profileImage;
+    final displayProfileImage = tweet.profileImage;
     final displayContent = isRetweet
-        ? widget.tweet.originalContent
-        : widget.tweet.content;
+        ? tweet.originalContent
+        : tweet.content;
     final displayImage = isRetweet
-        ? widget.tweet.originalImageUrl
-        : widget.tweet.imageUrl;
+        ? tweet.originalImageUrl
+        : tweet.imageUrl;
     final displayCreatedAt = isRetweet
-        ? (widget.tweet.originalCreatedAt ?? widget.tweet.createdAt)
-        : widget.tweet.createdAt;
+        ? (tweet.originalCreatedAt ?? tweet.createdAt)
+        : tweet.createdAt;
     final timeString = DateFormat('h:mm a • MMM d').format(displayCreatedAt);
 
     final words = displayContent.split(' ');
@@ -115,11 +177,12 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => TweetDetailScreen(tweet: widget.tweet),
+            builder: (_) => TweetDetailScreen(tweet: tweet),
           ),
         );
       },
       child: Container(
+        width: double.infinity,
         color: Theme.of(context).scaffoldBackgroundColor,
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
         child: Row(
@@ -136,6 +199,7 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   // Retweet header: shown above the author row for clarity
                   if (isRetweet)
@@ -175,6 +239,7 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                       ),
                     ),
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
                         child: RichText(
@@ -188,6 +253,7 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                                   fontSize: 15,
                                 ),
                               ),
+                              
                               TextSpan(
                                 text: ' $displayHandle',
                                 style: TextStyle(
@@ -207,6 +273,8 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                         ),
                       ),
                       IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                         icon: Icon(
                           Icons.more_horiz,
                           size: 18,
@@ -220,7 +288,7 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                                 top: Radius.circular(16),
                               ),
                             ),
-                            builder: (_) => Options(tweet: widget.tweet),
+                            builder: (_) => Options(tweet: tweet),
                           );
                         },
                       ),
@@ -246,7 +314,11 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                           border: Border.all(color: Colors.grey.shade200),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Image.network(displayImage),
+                        child: Image.network(
+                          displayImage,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
                   ],
@@ -256,14 +328,14 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                     children: [
                         _buildAction(
                         Icons.chat_bubble_outline,
-                        _repliesCount,
+                        repliesCount,
                         () {
-                         Get.to(() => TweetDetailScreen(tweet: widget.tweet));
+                         Get.to(() => TweetDetailScreen(tweet: tweet));
                         },
                         ),
                       _buildAction(
                         Icons.repeat,
-                        _retweetsCount,
+                        retweetsCount,
                         () async {
                           final currentUid =
                               FirebaseAuth.instance.currentUser?.uid;
@@ -276,42 +348,61 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                             );
                             return;
                           }
+                          
+                          // Optimistic update - update UI immediately
+                          setState(() {
+                            _isProcessingRetweet = true;
+                            _localIsRetweeted = !_localIsRetweeted;
+                            _localRetweetsCount += _localIsRetweeted ? 1 : -1;
+                          });
+
                           try {
-                            final targetId = widget.tweet.isRetweet
-                                ? widget.tweet.originalTweetId
-                                : widget.tweet.id;
+                            final targetId = tweet.isRetweet
+                                ? tweet.originalTweetId
+                                : tweet.id;
+                            
+                            // Firebase update happens in background
                             await TweetService.toggleRetweet(
                               targetId,
                               currentUid,
                             );
-                            if (!mounted) return;
-                            setState(() {
-                              _isRetweeted = !_isRetweeted;
-                              _retweetsCount += _isRetweeted ? 1 : -1;
-                            });
+                            
                             if (!mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  _isRetweeted
+                                  _localIsRetweeted
                                       ? 'Retweeted'
                                       : 'Retweet removed',
                                 ),
+                                duration: const Duration(seconds: 1),
                               ),
                             );
                           } catch (e) {
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Error: $e')),
-                            );
+                            // Revert optimistic update on error
+                            if (mounted) {
+                              setState(() {
+                                _localIsRetweeted = !_localIsRetweeted;
+                                _localRetweetsCount += _localIsRetweeted ? 1 : -1;
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error: $e')),
+                              );
+                            }
+                          } finally {
+                            if (mounted) {
+                              setState(() {
+                                _isProcessingRetweet = false;
+                              });
+                            }
                           }
                         },
-                        active: _isRetweeted,
+                        active: isRetweeted,
                         color: Colors.green,
                       ),
                       _buildAction(
                         Icons.favorite,
-                        _likesCount,
+                        likesCount,
                         () async {
                           final currentUid =
                               FirebaseAuth.instance.currentUser?.uid;
@@ -324,24 +415,40 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                             );
                             return;
                           }
+                          
+                          // Optimistic update - update UI immediately
+                          setState(() {
+                            _isProcessingLike = true;
+                            _localIsLiked = !_localIsLiked;
+                            _localLikesCount += _localIsLiked ? 1 : -1;
+                          });
+
                           try {
+                            // Firebase update happens in background
                             await TweetService.toggleLike(
-                              widget.tweet.id,
-                              widget.tweet.likes,
+                              tweet.id,
+                              tweet.likes,
                             );
-                            if (!mounted) return;
-                            setState(() {
-                              _isLiked = !_isLiked;
-                              _likesCount += _isLiked ? 1 : -1;
-                            });
                           } catch (e) {
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Error: $e')),
-                            );
+                            // Revert optimistic update on error
+                            if (mounted) {
+                              setState(() {
+                                _localIsLiked = !_localIsLiked;
+                                _localLikesCount += _localIsLiked ? 1 : -1;
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error: $e')),
+                              );
+                            }
+                          } finally {
+                            if (mounted) {
+                              setState(() {
+                                _isProcessingLike = false;
+                              });
+                            }
                           }
                         },
-                        active: _isLiked,
+                        active: isLiked,
                         color: Colors.red,
                       ),
                       IconButton(
@@ -349,7 +456,7 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                         onPressed: () async {
                           try {
                             final text =
-                                '${widget.tweet.username} ${widget.tweet.handle}: ${widget.tweet.content}';
+                                '${tweet.username} ${tweet.handle}: ${tweet.content}';
                             await Clipboard.setData(ClipboardData(text: text));
                             if (!mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -416,41 +523,46 @@ class Options extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Only show action options for tweets that belong to the current user.
-          if (!isMyTweet)
-            // For other users' tweets, don't show like/share/bookmark/report.
-            // Provide a simple cancel entry so the sheet can be closed gracefully.
-            ListTile(
-              leading: const Icon(Icons.close),
-              title: const Text('Cancel'),
-              onTap: () => Navigator.pop(context),
-            ),
+          // Share and Bookmark options available for all tweets
+          _optionTile(
+            icon: Icons.share_outlined,
+            label: 'Share',
+            onTap: () async {
+              Navigator.pop(context);
+              try {
+                final text =
+                    '${tweet.username} ${tweet.handle}: ${tweet.content}';
+                await Clipboard.setData(ClipboardData(text: text));
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Tweet copied to clipboard'),
+                  ),
+                );
+              } catch (e) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Share failed: $e')),
+                );
+              }
+            },
+          ),
 
+          _optionTile(
+            icon: Icons.bookmark_border,
+            label: 'Bookmark',
+            onTap: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Bookmarked'),
+                ),
+              );
+            },
+          ),
+
+          // Delete option only for the tweet author
           if (isMyTweet) ...[
-            _optionTile(
-              icon: tweet.isLiked ? Icons.favorite : Icons.favorite_border,
-              label: tweet.isLiked ? 'Unlike' : 'Like',
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-
-            _optionTile(
-              icon: Icons.share_outlined,
-              label: 'Share',
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-
-            _optionTile(
-              icon: Icons.bookmark_border,
-              label: 'Bookmark',
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-
             const Divider(),
 
             _optionTile(
@@ -476,16 +588,18 @@ class Options extends StatelessWidget {
     required VoidCallback onTap,
     bool isDestructive = false,
   }) {
-    return ListTile(
-      leading: Icon(icon, color: isDestructive ? Colors.red : Colors.black),
-      title: Text(
-        label,
-        style: TextStyle(
-          fontWeight: FontWeight.w600,
-          color: isDestructive ? Colors.red : Colors.black,
+    return Builder(
+      builder: (context) => ListTile(
+        leading: Icon(icon, color: isDestructive ? Colors.red : Theme.of(context).iconTheme.color),
+        title: Text(
+          label,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: isDestructive ? Colors.red : Theme.of(context).textTheme.bodyLarge?.color,
+          ),
         ),
+        onTap: onTap,
       ),
-      onTap: onTap,
     );
   }
 

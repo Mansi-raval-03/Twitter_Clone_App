@@ -35,24 +35,20 @@ class NotificationScreen extends StatefulWidget {
 
 class _NotificationScreenState extends State<NotificationScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  // Ensure controller is registered with Get for access by GetBuilder
+  NotificationController? _notificationController;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    final controller = Get.put(NotificationController());
+    _notificationController = Get.put(NotificationController());
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) controller.startFirestoreListener(uid);
+    if (uid != null) _notificationController?.startFirestoreListener(uid);
   }
 
   @override
   void dispose() {
-    // stop listening when screen disposed
-    try {
-      final c = Get.isRegistered<NotificationController>() ? Get.find<NotificationController>() : null;
-      c?.stopFirestoreListener();
-    } catch (_) {}
+    _notificationController?.stopFirestoreListener();
     _tabController.dispose();
     super.dispose();
   }
@@ -95,14 +91,14 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
               decoration: BoxDecoration(
                 color: Theme.of(context).scaffoldBackgroundColor,
                 border: Border(
-                  bottom: BorderSide(color: Colors.grey.shade200),
+                  bottom: BorderSide(color: Theme.of(context).dividerColor, width: 1),
                 ),
               ),
               child: TabBar(
                 controller: _tabController,
                 labelColor: Theme.of(context).textTheme.titleLarge?.color,
-                unselectedLabelColor: Colors.grey,
-                indicatorColor: Colors.lightBlueAccent,
+                unselectedLabelColor: Theme.of(context).textTheme.bodyLarge?.color,
+                indicatorColor: Theme.of(context).colorScheme.primary,
                 indicatorWeight: 3,
                 labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
                 tabs: const [
@@ -137,7 +133,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.notifications_none, size: 64, color: Colors.grey.shade400),
+                Icon(Icons.notifications_none, size: 64, color: Theme.of(context).iconTheme.color?.withOpacity(0.4)),
                 const SizedBox(height: 16),
                 Text(
                   'No notifications yet',
@@ -153,7 +149,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 15,
-                    color: Colors.grey.shade600,
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
                   ),
                 ),
               ],
@@ -180,7 +176,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
         separatorBuilder: (_, __) => Divider(
           height: 1,
           thickness: 1,
-          color: Colors.grey.shade200,
+          color: Theme.of(context).dividerColor,
         ),
         itemBuilder: (context, index) {
           final n = list[index];
@@ -203,7 +199,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.notifications_none, size: 64, color: Colors.grey.shade400),
+                Icon(Icons.notifications_none, size: 64, color: Theme.of(context).iconTheme.color?.withOpacity(0.4)),
                 const SizedBox(height: 16),
                 Text(
                   'Nothing to see here — yet',
@@ -219,7 +215,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 15,
-                    color: Colors.grey.shade600,
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
                   ),
                 ),
               ],
@@ -246,7 +242,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
         separatorBuilder: (_, __) => Divider(
           height: 1,
           thickness: 1,
-          color: Colors.grey.shade200,
+          color: Theme.of(context).dividerColor,
         ),
         itemBuilder: (context, index) {
           return _buildNotificationTile(mentions[index]);
@@ -268,12 +264,12 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
         break;
       case NotificationType.reply:
         iconData = Icons.chat_bubble_outline;
-        iconColor = Colors.lightBlueAccent;
+        iconColor = Theme.of(context).colorScheme.primary;
         actionText = 'replied to your Tweet';
         break;
       case NotificationType.message:
         iconData = Icons.email_outlined;
-        iconColor = Colors.lightBlueAccent;
+        iconColor = Theme.of(context).colorScheme.primary;
         actionText = 'sent you a message';
         break;
       case NotificationType.retweet:
@@ -283,12 +279,12 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
         break;
       case NotificationType.follow:
         iconData = Icons.person_add;
-        iconColor = Colors.lightBlueAccent;
+        iconColor = Theme.of(context).colorScheme.primary;
         actionText = 'followed you';
         break;
       case NotificationType.mention:
         iconData = Icons.alternate_email;
-        iconColor = Colors.lightBlueAccent;
+        iconColor = Theme.of(context).colorScheme.primary;
         actionText = 'mentioned you';
         break;
       case NotificationType.system:
@@ -302,7 +298,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
         ));
       },
       child: Container(
-        color: notification.isRead ? Colors.white : Colors.blue.shade50,
+        color: notification.isRead ? Theme.of(context).scaffoldBackgroundColor   : Theme.of(context).colorScheme.primary.withOpacity(0.1),
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -332,8 +328,8 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                             children: [
                               TextSpan(
                                 text: notification.username,
-                                style: const TextStyle(
-                                  color: Colors.black,
+                                style: TextStyle(
+                                  color: Theme.of(context).textTheme.bodyLarge?.color,
                                   fontWeight: FontWeight.w700,
                                   fontSize: 15,
                                 ),
@@ -341,7 +337,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                               TextSpan(
                                 text: ' $actionText',
                                 style: TextStyle(
-                                  color: Colors.grey.shade800,
+                                  color: Theme.of(context).textTheme.bodyLarge?.color,
                                   fontSize: 15,
                                 ),
                               ),
@@ -356,13 +352,13 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
+                        border: Border.all(color: Theme.of(context).dividerColor),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         notification.tweetContent!,
                         style: TextStyle(
-                          color: Colors.grey.shade700,
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
                           fontSize: 14,
                         ),
                         maxLines: 2,
@@ -374,7 +370,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                   Text(
                     notification.timeAgo,
                     style: TextStyle(
-                      color: Colors.grey.shade600,
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
                       fontSize: 13,
                     ),
                   ),

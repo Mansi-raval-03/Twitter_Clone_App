@@ -25,6 +25,7 @@ class AppThemes {
 
     floatingActionButtonTheme: const FloatingActionButtonThemeData(
       backgroundColor: Color(0xFF1DA1F2),
+      foregroundColor: Colors.white,
     ),
 
     cardColor: Colors.white,
@@ -61,7 +62,8 @@ class AppThemes {
     ),
 
     floatingActionButtonTheme: const FloatingActionButtonThemeData(
-      backgroundColor: Color(0xFF1DA1F2),
+      backgroundColor: Colors.blueAccent,
+      foregroundColor: Colors.white,
     ),
 
     bottomAppBarTheme: const BottomAppBarTheme(

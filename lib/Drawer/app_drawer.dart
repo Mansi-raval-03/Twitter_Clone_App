@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:twitter_clone_app/controller/profile_controller.dart';
 import 'package:twitter_clone_app/utils/image_resolver.dart';
 import 'package:twitter_clone_app/Pages/book_marks_screen.dart';
@@ -68,7 +69,10 @@ class AppDrawer extends StatelessWidget {
 
           _drawerItem(Icons.help, 'Help Center', () {}),
 
-          _drawerItem(Icons.logout, 'Logout', () {
+          _drawerItem(Icons.logout, 'Logout', () async {
+            // Sign out from Firebase Auth to ensure persistent login is cleared
+            await FirebaseAuth.instance.signOut();
+            // Navigate to login screen
             Get.offAllNamed(AppRoute.login);
           }),
         ],
@@ -116,15 +120,15 @@ class AppDrawer extends StatelessWidget {
                   const SizedBox(height: 12),
                   Text(
                     user?.name ?? 'Guest',
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: Theme.of(context).scaffoldBackgroundColor,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   Text(
                     user != null && user.username.isNotEmpty ? '@${user.username}' : '',
-                    style: const TextStyle(color: Colors.white70),
+                    style: TextStyle(color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.8)),
                   ),
                 ],
               ),

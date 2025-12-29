@@ -3,28 +3,40 @@ import 'package:get/get.dart';
 import 'package:twitter_clone_app/Route/route.dart';
 import 'package:twitter_clone_app/controller/signup_controller.dart';
 
-class SignupScreen extends GetView<SignupController> {
+class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {  context=StatelessElement(SignupScreen());
-    return Scaffold(
-  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+  State<SignupScreen> createState() => _SignupScreenState();
+}
+
+class _SignupScreenState extends State<SignupScreen> {
+  final _formKey = GlobalKey<FormState>();
+  late final SignupController controller = Get.find<SignupController>();
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+
       appBar: AppBar(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.close,
-            color: Color(0xFF0F1419),
+            color: Theme.of(context).iconTheme.color,
             size: 24,
           ),
-          onPressed: () => Get.back(),
+
+
+          onPressed: () => Get.offNamed(AppRoute.login),
         ),
-        title: const Text(
+        title: Text(
           'Sign up',
           style: TextStyle(
-            color: Color(0xFF0F1419),
+            color: Theme.of(context).textTheme.titleLarge?.color,
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
@@ -34,22 +46,22 @@ class SignupScreen extends GetView<SignupController> {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Form(
-            key: controller.formKey,
+            key: _formKey,
             child: Padding(
-              padding: const EdgeInsets.symmetric(
+              padding: EdgeInsets.symmetric(
                 vertical: 20.0,
                 horizontal: 32.0,
               ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   /// Create account heading
-                  const Text(
+                  Text(
                     'Create your account',
                     style: TextStyle(
                       fontSize: 31,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F1419),
+                      color: Theme.of(context).textTheme.titleLarge?.color,
                     ),
                   ),
 
@@ -59,44 +71,44 @@ class SignupScreen extends GetView<SignupController> {
                   TextFormField(
                     controller: controller.nameController,
                     validator: (value) => controller.validateName(value),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 17,
-                      color: Color(0xFF0F1419),
+                      color: Theme.of(context).textTheme.titleLarge?.color,
                     ),
                     decoration: InputDecoration(
                       labelText: 'Name',
-                      labelStyle: const TextStyle(
-                        color: Color(0xFF536471),
+                      labelStyle: TextStyle(
+                        color: Theme.of(context).textTheme.titleLarge?.color,
                         fontSize: 17,
                       ),
-                      floatingLabelStyle: const TextStyle(
-                        color: Color(0xFF1DA1F2),
+                      floatingLabelStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
                         fontSize: 13,
                       ),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: Theme.of(context).colorScheme.surface,
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 16,
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(4),
-                        borderSide: const BorderSide(
-                          color: Color(0xFFCFD9DE),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.outline,
                           width: 1,
                         ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(4),
-                        borderSide: const BorderSide(
-                          color: Color(0xFFCFD9DE),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.outline,
                           width: 1,
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(4),
-                        borderSide: const BorderSide(
-                          color: Color(0xFF1DA1F2),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
                           width: 2,
                         ),
                       ),
@@ -110,44 +122,44 @@ class SignupScreen extends GetView<SignupController> {
                     controller: controller.emailController,
                     validator: (value) => controller.validateEmail(value),
                     keyboardType: TextInputType.emailAddress,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 17,
-                      color: Color(0xFF0F1419),
+                      color: Theme.of(context).textTheme.titleLarge?.color,
                     ),
                     decoration: InputDecoration(
                       labelText: 'Email',
-                      labelStyle: const TextStyle(
-                        color: Color(0xFF536471),
+                      labelStyle: TextStyle(
+                        color: Theme.of(context).textTheme.titleLarge?.color,
                         fontSize: 17,
                       ),
-                      floatingLabelStyle: const TextStyle(
-                        color: Color(0xFF1DA1F2),
+                      floatingLabelStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
                         fontSize: 13,
                       ),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: Theme.of(context).colorScheme.surface,
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 16,
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(4),
-                        borderSide: const BorderSide(
-                          color: Color(0xFFCFD9DE),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.outline,
                           width: 1,
                         ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(4),
-                        borderSide: const BorderSide(
-                          color: Color(0xFFCFD9DE),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.outline,
                           width: 1,
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(4),
-                        borderSide: const BorderSide(
-                          color: Color(0xFF1DA1F2),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
                           width: 2,
                         ),
                       ),
@@ -162,44 +174,44 @@ class SignupScreen extends GetView<SignupController> {
                       controller: controller.passwordController,
                       validator: (value) => controller.validatePassword(value),
                       obscureText: !controller.isPasswordVisible.value,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 17,
-                        color: Color(0xFF0F1419),
+                        color: Theme.of(context).textTheme.titleLarge?.color,
                       ),
                       decoration: InputDecoration(
                         labelText: 'Password',
-                        labelStyle: const TextStyle(
-                          color: Color(0xFF536471),
+                        labelStyle: TextStyle(
+                          color: Theme.of(context).textTheme.titleLarge?.color,
                           fontSize: 17,
                         ),
-                        floatingLabelStyle: const TextStyle(
-                          color: Color(0xFF1DA1F2),
+                        floatingLabelStyle: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
                           fontSize: 13,
                         ),
                         filled: true,
-                        fillColor: Colors.white,
+                        fillColor: Theme.of(context).colorScheme.surface,
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 16,
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFCFD9DE),
+                          borderSide: BorderSide(
+                            color: Theme.of(context).colorScheme.outline,
                             width: 1,
                           ),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFCFD9DE),
+                          borderSide: BorderSide(
+                            color: Theme.of(context).colorScheme.outline,
                             width: 1,
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: Color(0xFF1DA1F2),
+                          borderSide: BorderSide(
+                            color: Theme.of(context).colorScheme.primary,
                             width: 2,
                           ),
                         ),
@@ -208,7 +220,7 @@ class SignupScreen extends GetView<SignupController> {
                             controller.isPasswordVisible.value
                                 ? Icons.visibility
                                 : Icons.visibility_off,
-                            color: const Color(0xFF536471),
+                            color: Theme.of(context).colorScheme.outline,
                           ),
                           onPressed: controller.togglePasswordVisibility,
                         ),
@@ -216,7 +228,7 @@ class SignupScreen extends GetView<SignupController> {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  SizedBox(height: Get.height * 0.02),
 
                   /// Confirm Password Field
                   Obx(
@@ -224,44 +236,44 @@ class SignupScreen extends GetView<SignupController> {
                       controller: controller.confirmPasswordController,
                       validator: (value) => controller.validateConfirmPassword(value),
                       obscureText: !controller.isConfirmPasswordVisible.value,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 17,
-                        color: Color(0xFF0F1419),
+                        color: Theme.of(context).textTheme.titleLarge?.color,
                       ),
                       decoration: InputDecoration(
                         labelText: 'Confirm Password',
-                        labelStyle: const TextStyle(
-                          color: Color(0xFF536471),
+                        labelStyle: TextStyle(
+                          color: Theme.of(context).textTheme.titleLarge?.color,
                           fontSize: 17,
                         ),
-                        floatingLabelStyle: const TextStyle(
-                          color: Color(0xFF1DA1F2),
+                        floatingLabelStyle: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
                           fontSize: 13,
                         ),
                         filled: true,
-                        fillColor: Colors.white,
+                        fillColor: Theme.of(context).colorScheme.surface,
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 16,
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFCFD9DE),
+                          borderSide: BorderSide(
+                            color: Theme.of(context).colorScheme.outline,
                             width: 1,
                           ),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFCFD9DE),
+                          borderSide: BorderSide(
+                            color: Theme.of(context).colorScheme.outline,
                             width: 1,
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: Color(0xFF1DA1F2),
+                          borderSide: BorderSide(
+                            color: Theme.of(context).colorScheme.primary,
                             width: 2,
                           ),
                         ),
@@ -270,7 +282,7 @@ class SignupScreen extends GetView<SignupController> {
                             controller.isConfirmPasswordVisible.value
                                 ? Icons.visibility
                                 : Icons.visibility_off,
-                            color: const Color(0xFF536471),
+                            color: Theme.of(context).colorScheme.outline,
                           ),
                           onPressed: controller.toggleConfirmPasswordVisibility,
                         ),
@@ -282,10 +294,10 @@ class SignupScreen extends GetView<SignupController> {
 
                   /// Terms of Service Notice
                   RichText(
-                    text: const TextSpan(
+                    text: TextSpan(
                       style: TextStyle(
                         fontSize: 13,
-                        color: Color(0xFF536471),
+                        color: Theme.of(context).colorScheme.outline,
                         height: 1.4,
                       ),
                       children: [
@@ -295,7 +307,7 @@ class SignupScreen extends GetView<SignupController> {
                         TextSpan(
                           text: 'Terms of Service',
                           style: TextStyle(
-                            color: Color(0xFF1DA1F2),
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                         ),
                         TextSpan(
@@ -304,7 +316,7 @@ class SignupScreen extends GetView<SignupController> {
                         TextSpan(
                           text: 'Privacy Policy',
                           style: TextStyle(
-                            color: Color(0xFF1DA1F2),
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                         ),
                         TextSpan(
@@ -313,7 +325,7 @@ class SignupScreen extends GetView<SignupController> {
                         TextSpan(
                           text: 'Cookie Use',
                           style: TextStyle(
-                            color: Color(0xFF1DA1F2),
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                         ),
                         TextSpan(
@@ -332,8 +344,8 @@ class SignupScreen extends GetView<SignupController> {
                     child: Obx(
                       () => ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1DA1F2),
-                          foregroundColor: Colors.white,
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          foregroundColor: Theme.of(context).colorScheme.onPrimary,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(25),
                           ),
@@ -342,16 +354,16 @@ class SignupScreen extends GetView<SignupController> {
                         onPressed: controller.isLoading.value
                             ? null
                             : () {
-                                if (controller.formKey.currentState?.validate() ?? false) {
+                                if (_formKey.currentState?.validate() ?? false) {
                                   controller.signup();
                                 }
                               },
                         child: controller.isLoading.value
-                            ? const SizedBox(
+                            ? SizedBox(
                                 height: 20,
                                 width: 20,
                                 child: CircularProgressIndicator(
-                                  color: Colors.white,
+                                  color: Theme.of(context).colorScheme.onPrimary,
                                   strokeWidth: 2,
                                 ),
                               )
@@ -372,22 +384,22 @@ class SignupScreen extends GetView<SignupController> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text(
+                      Text(
                         'Already have an account? ',
                         style: TextStyle(
                           fontSize: 15,
-                          color: Color(0xFF536471),
+                          color: Theme.of(context).colorScheme.outline,
                         ),
                       ),
                       GestureDetector(
                         onTap: () {
-                          Get.toNamed(AppRoute.login);
+                          Get.offNamed(AppRoute.login);
                         },
-                        child: const Text(
+                        child: Text(
                           'Sign in',
                           style: TextStyle(
                             fontSize: 15,
-                            color: Color(0xFF1DA1F2),
+                            color: Theme.of(context).colorScheme.primary,
                             fontWeight: FontWeight.normal,
                           ),
                         ),
@@ -401,6 +413,7 @@ class SignupScreen extends GetView<SignupController> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

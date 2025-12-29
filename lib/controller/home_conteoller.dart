@@ -49,6 +49,7 @@ class HomeController extends GetxController {
     File? imageFile,
   }) async {
     final user = _auth.currentUser;
+  
     if (user == null) throw Exception('User not authenticated');
 
     String imageUrl = '';

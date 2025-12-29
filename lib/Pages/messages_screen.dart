@@ -218,7 +218,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
             decoration: BoxDecoration(
                 color: Theme.of(context).scaffoldBackgroundColor,
               border: Border(
-                bottom: BorderSide(color: Colors.grey.shade200),
+                bottom: BorderSide(color: Theme.of(context).dividerColor),
               ),
             ),
             child: TextField(
@@ -226,10 +226,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
               onChanged: _filterUsers,
               decoration: InputDecoration(
                 hintText: 'Search Direct Messages',
-                hintStyle: TextStyle(color: Colors.grey.shade500),
-                prefixIcon: Icon(Icons.search, color: Colors.grey.shade600),
+                hintStyle: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
+                prefixIcon: Icon(Icons.search, color: Theme.of(context).iconTheme.color),
                 filled: true,
-                fillColor: Colors.grey.shade100,
+                fillColor: Theme.of(context).dividerColor,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
                   borderSide: BorderSide.none,
@@ -251,7 +251,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     separatorBuilder: (context, index) => Divider(
                       height: 1,
                       thickness: 1,
-                      color: Colors.grey.shade200,
+                      color: Theme.of(context).dividerColor,
                       indent: 88,
                     ),
                     itemBuilder: (context, index) {
@@ -263,10 +263,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         heroTag: 'messages_fab',
-        backgroundColor: Colors.lightBlueAccent,
+        backgroundColor: Theme.of(context).colorScheme.primary,
         shape: const CircleBorder(),
         onPressed: _showNewMessageDialog,
-        child: const Icon(Icons.email_outlined, color: Colors.white),
+        child: Icon(Icons.email_outlined, color: Theme.of(context).iconTheme.color),
       ),
     );
   }
@@ -278,7 +278,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.email_outlined, size: 64, color: Colors.grey.shade400),
+            Icon(Icons.email_outlined, size: 64, color: Theme.of(context).iconTheme.color),
             const SizedBox(height: 16),
             Text(
               'Welcome to your inbox!',
@@ -294,14 +294,14 @@ class _MessagesScreenState extends State<MessagesScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 15,
-                color: Colors.grey.shade600,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
               ),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _showNewMessageDialog,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.lightBlueAccent,
+                backgroundColor: Theme.of(context).colorScheme.primary,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 32,
                   vertical: 12,
@@ -392,7 +392,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         Text(
                           user['lastMessageTime'],
                           style: TextStyle(
-                            color: Colors.grey.shade600,
+                            color: Theme.of(context).textTheme.bodyLarge?.color,
                             fontSize: 13,
                           ),
                         ),
@@ -404,21 +404,21 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       Text(
                         '@${user['handle']}',
                         style: TextStyle(
-                          color: Colors.grey.shade600,
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
                           fontSize: 14,
                         ),
                       ),
                       const SizedBox(width: 4),
                       Text(
                         '·',
-                        style: TextStyle(color: Colors.grey.shade600),
+                        style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
                       ),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           user['lastMessage'],
                           style: TextStyle(
-                            color: Colors.grey.shade600,
+                            color: Theme.of(context).textTheme.bodyLarge?.color,
                             fontSize: 14,
                           ),
                           maxLines: 1,
@@ -473,11 +473,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       onPressed: () => Navigator.pop(context),
                     ),
                     const SizedBox(width: 8),
-                    const Text(
+                    Text(
                       'New message',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
                       ),
                     ),
                   ],

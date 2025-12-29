@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum NotificationType { reply, mention, retweet, like, follow, message, system }
 
+// Model class for a notification
 class AppNotification {
   final String id;
   final String title;
@@ -23,7 +24,8 @@ class AppNotification {
     this.read = false,
     this.meta,
   });
-
+  
+  // Copy with method for updating fields
   AppNotification copyWith({
     String? id,
     String? title,
@@ -205,7 +207,7 @@ class NotificationController extends GetxController {
 extension NotificationControllerFirestore on NotificationController {
 
   void startFirestoreListener(String userId) {
-    this._firestoreSub = FirebaseFirestore.instance
+    _firestoreSub = FirebaseFirestore.instance
         .collection('notifications')
         .where('to', isEqualTo: userId)
         .orderBy('time', descending: true)
@@ -241,8 +243,8 @@ extension NotificationControllerFirestore on NotificationController {
   }
 
   void stopFirestoreListener() {
-    this._firestoreSub?.cancel();
-    this._firestoreSub = null;
+    _firestoreSub?.cancel();
+    _firestoreSub = null;
   }
 }
 

@@ -33,14 +33,59 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  // Cache for user data to avoid repeated fetches
+  final Map<String, Map<String, dynamic>> _usersCache = {};
+
+  Future<Map<String, dynamic>?> _fetchUserData(String uid) async {
+    if (_usersCache.containsKey(uid)) {
+      return _usersCache[uid];
+    }
+    
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (doc.exists) {
+        _usersCache[uid] = doc.data()!;
+        return doc.data();
+      }
+    } catch (e) {
+      print('Error fetching user $uid: $e');
+    }
+    return null;
+  }
+
+  Future<Map<String, Map<String, dynamic>>> _fetchUsersForTweets(List<TweetModel> tweets) async {
+    final uniqueUids = tweets.map((t) => t.uid).toSet();
+    final usersMap = <String, Map<String, dynamic>>{};
+    
+    for (final uid in uniqueUids) {
+      final userData = await _fetchUserData(uid);
+      if (userData != null) {
+        usersMap[uid] = userData;
+      }
+    }
+    
+    // Also fetch retweeter data if needed
+    for (final tweet in tweets) {
+      for (final retweetUid in tweet.retweets) {
+        if (!usersMap.containsKey(retweetUid)) {
+          final userData = await _fetchUserData(retweetUid);
+          if (userData != null) {
+            usersMap[retweetUid] = userData;
+          }
+        }
+      }
+    }
+    
+    return usersMap;
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Users stream from Firestore -> map uid -> user data
-    final usersCollection = FirebaseFirestore.instance.collection('users').snapshots();
-
-    return Scaffold(
-backgroundColor: Theme.of(context).scaffoldBackgroundColor,      drawer: AppDrawer(),
+return Scaffold(
+  backgroundColor: Theme.of(context).primaryTextTheme.bodyLarge?.color,
+  drawer: AppDrawer(),
       appBar: AppBar(
+        
         leading: Builder(
           builder: (context) => IconButton(
             icon: Icon(Icons.person_4_outlined, color: Theme.of(context).iconTheme.color),
@@ -49,6 +94,7 @@ backgroundColor: Theme.of(context).scaffoldBackgroundColor,      drawer: AppDraw
             },
           ),
         ),
+
         elevation: 0.4,
         centerTitle: false,
         titleSpacing: 0,
@@ -58,48 +104,55 @@ backgroundColor: Theme.of(context).scaffoldBackgroundColor,      drawer: AppDraw
           child: Text(
             'Home',
             style: TextStyle(
-              color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
+              color: Theme.of(context).textTheme.bodyLarge?.color ?? Theme.of(context).primaryIconTheme.color,
               fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
           ),
         ),
        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      
       ),
+
       body: IndexedStack(
         children: [
           Container(
             color:   Theme.of(context).scaffoldBackgroundColor,
-
-            // First listen to users to build a uid->user map, then tweets stream and enrich tweets
-            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: usersCollection,
-              builder: (context, usersSnap) {
-                if (usersSnap.hasError) {
-                  return Center(child: Text('Users load error: ${usersSnap.error}'));
+          
+            // Load tweets stream and enrich with user data on demand
+            child: StreamBuilder<List<TweetModel>>(
+              stream: _homeController.tweetsStream(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
                 }
-
-                // Build users map (uid -> user map)
-                final Map<String, Map<String, dynamic>> usersMap = {};
-                final userDocs = usersSnap.data?.docs ?? [];
-                for (final doc in userDocs) {
-                  usersMap[doc.id] = doc.data();
+          
+                if (snapshot.hasError) {
+                  return Center(child: Text('Tweets load error: ${snapshot.error}'));
                 }
-
-                return StreamBuilder<List<TweetModel>>(
-                  stream: _homeController.tweetsStream(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-
-                    if (snapshot.hasError) {
-                      return Center(child: Text('Tweets load error: ${snapshot.error}'));
-                    }
-
-                    final tweets = snapshot.data ?? [];
-
-                    // Enrich tweet author info using usersMap (if available)
+          
+                final tweets = snapshot.data ?? [];
+          
+                if (tweets.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Text(
+                        'No tweets yet. Be the first to post!',
+                        style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  );
+                }
+          
+                // Fetch user data for each unique tweet author
+                return FutureBuilder<Map<String, Map<String, dynamic>>>(
+                  future: _fetchUsersForTweets(tweets),
+                  builder: (context, usersSnapshot) {
+                    final usersMap = usersSnapshot.data ?? {};
+          
+                    // Enrich tweet author info using usersMap
                     final enrichedTweets = tweets.map((t) {
                       final author = usersMap[t.uid];
                       if (author != null) {
@@ -112,7 +165,7 @@ backgroundColor: Theme.of(context).scaffoldBackgroundColor,      drawer: AppDraw
                           handle = '@${author['email'].toString().split('@')[0]}';
                         }
                         final profileImage = (author['profileImage'] ?? author['profilePicture'] ?? t.profileImage).toString();
-
+          
                         // Determine a primary retweeter (for display) if available
                         String retweetedBy = '';
                         if (t.retweets.isNotEmpty) {
@@ -122,7 +175,7 @@ backgroundColor: Theme.of(context).scaffoldBackgroundColor,      drawer: AppDraw
                             retweetedBy = (ru['username'] ?? ru['name'] ?? '').toString();
                           }
                         }
-
+          
                         return TweetModel(
                           id: t.id,
                           uid: t.uid,
@@ -150,27 +203,14 @@ backgroundColor: Theme.of(context).scaffoldBackgroundColor,      drawer: AppDraw
                       }
                       return t;
                     }).toList();
-
-                    if (enrichedTweets.isEmpty) {
-                      return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24.0),
-                          child: Text(
-                            'No tweets yet. Be the first to post!',
-                            style: TextStyle(color: Colors.grey.shade600),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      );
-                    }
-
+          
                     return ListView.separated(
                       padding: const EdgeInsets.only(top: 4, bottom: 96),
                       itemCount: enrichedTweets.length,
                       separatorBuilder: (_, __) => Divider(
                         height: 1,
                         thickness: 1,
-                        color: Colors.grey.shade200,
+                        color: Theme.of(context).dividerColor,
                       ),
                       itemBuilder: (_, index) {
                         final tweet = enrichedTweets[index];
@@ -193,7 +233,7 @@ backgroundColor: Theme.of(context).scaffoldBackgroundColor,      drawer: AppDraw
       ),
       floatingActionButton: FloatingActionButton(
         heroTag: 'home_fab',
-        backgroundColor: Colors.blue,
+        backgroundColor: Theme.of(context).colorScheme.primary,
         shape: const CircleBorder(),
         onPressed: () {
           final contentController = TextEditingController();
@@ -202,7 +242,7 @@ backgroundColor: Theme.of(context).scaffoldBackgroundColor,      drawer: AppDraw
           showModalBottomSheet(
             context: context,
             isScrollControlled: true,
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            backgroundColor: Theme.of(context).floatingActionButtonTheme.backgroundColor,
             shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
             ),
@@ -274,7 +314,7 @@ backgroundColor: Theme.of(context).scaffoldBackgroundColor,      drawer: AppDraw
             },
           );
         },
-        child: Icon(Icons.create, color: Colors.white),
+        child: Icon(Icons.create, color: Theme.of(context).iconTheme.color),
       ),
     );
   }

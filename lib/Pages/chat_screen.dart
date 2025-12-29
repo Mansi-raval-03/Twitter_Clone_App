@@ -175,12 +175,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ],
           ),
         ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.info_outline, color: Theme.of(context).appBarTheme.foregroundColor),
-            onPressed: () {},
-          ),
-        ],
+      
       ),
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
@@ -286,11 +281,12 @@ class _ChatScreenState extends State<ChatScreen> {
                 Expanded(
                   child: TextField(
                     controller: _messageController,
+                    style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
                     decoration: InputDecoration(
                       hintText: 'Start a new message',
-                      hintStyle: TextStyle(color: Colors.grey.shade500),
+                      hintStyle: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color?.withOpacity(0.6)),
                       filled: true,
-                      fillColor: Colors.grey.shade100,
+                      fillColor: Theme.of(context).inputDecorationTheme.fillColor ?? Theme.of(context).cardColor,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
                         borderSide: BorderSide.none,
@@ -307,9 +303,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
                 const SizedBox(width: 12),
                 CircleAvatar(
-                  backgroundColor: Colors.lightBlueAccent,
+                  backgroundColor: Theme.of(context).primaryColor,
                   child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white, size: 20),
+                    icon: Icon(Icons.send, color: Theme.of(context).primaryIconTheme.color, size: 20),
                     onPressed: _sendMessage,
                   ),
                 ),
@@ -332,7 +328,7 @@ class _ChatScreenState extends State<ChatScreen> {
             CircleAvatar(
               radius: 14,
               backgroundImage: resolveImageProvider(widget.profileImage),
-              backgroundColor: Colors.grey.shade300,
+              backgroundColor: Theme.of(context).dividerColor,
               child: widget.profileImage.isEmpty
                   ? const Icon(Icons.person, size: 14)
                   : null,
@@ -350,13 +346,19 @@ class _ChatScreenState extends State<ChatScreen> {
                     vertical: 10,
                   ),
                   decoration: BoxDecoration(
-                    color: isMe ? Colors.lightBlueAccent : Colors.grey.shade200,
+                    color: isMe 
+                        ? Theme.of(context).primaryColor 
+                        : (Theme.of(context).brightness == Brightness.dark 
+                            ? Colors.grey.shade800 
+                            : Colors.grey.shade300),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     message,
                     style: TextStyle(
-                      color: isMe ? Colors.white : Colors.black,
+                      color: isMe 
+                          ? Colors.white 
+                          : Theme.of(context).textTheme.bodyLarge?.color,
                       fontSize: 15,
                     ),
                   ),
@@ -367,7 +369,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: Text(
                       time,
                       style: TextStyle(
-                        color: Colors.grey.shade600,
+                        color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6),
                         fontSize: 12,
                       ),
                     ),

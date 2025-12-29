@@ -33,10 +33,10 @@ class ForgotPasswordScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 20),
-                const Text(
+                Text(
                   'Enter your email address to receive a password reset link',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                  style: TextStyle(fontSize: 14, color: Theme.of(context).textTheme.bodyLarge?.color),
                 ),
                 const SizedBox(height: 40),
                 TextFormField(
@@ -45,10 +45,11 @@ class ForgotPasswordScreen extends StatelessWidget {
                   validator: resetController.validateEmail,
                   decoration: InputDecoration(
                     hintText: 'Enter your email',
+                    hintStyle: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color?.withOpacity(0.6)),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    prefixIcon: const Icon(Icons.email),
+                    prefixIcon: Icon(Icons.email, color: Theme.of(context).iconTheme.color),
                   ),
                   keyboardType: TextInputType.emailAddress,
                 ),
@@ -68,21 +69,21 @@ class ForgotPasswordScreen extends StatelessWidget {
                               }
                             },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
+                        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                        foregroundColor: Theme.of(context).secondaryHeaderColor,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(25),
-                          side: const BorderSide(color: Colors.blue),
+                          side: BorderSide(color: Theme.of(context).primaryColor),
                         ),
                         elevation: 0,
                       ),
                       child: resetController.isLoading.value
-                          ? const SizedBox(
+                          ? SizedBox(
                               height: 20,
                               width: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Colors.white,
+                                color: Theme.of(context).primaryIconTheme.color,
                               ),
                             )
                           : const Text(
@@ -100,9 +101,9 @@ class ForgotPasswordScreen extends StatelessWidget {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () => Get.back(),
-                    child: const Text(
+                    child: Text(
                       'Back to Login',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color),
                     ),
                   ),
                 ),

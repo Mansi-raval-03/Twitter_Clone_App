@@ -136,13 +136,13 @@ class _SearchScreenState extends State<SearchScreen>
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               decoration: BoxDecoration(
                 color: Theme.of(context).scaffoldBackgroundColor,
-                border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+                border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
               ),
               child: Row(
                 children: [
                   if (isSearching) 
                     IconButton(
-                      icon: const Icon(Icons.arrow_back),
+                      icon: Icon(Icons.arrow_back, color: Theme.of(context).iconTheme.color),
                       onPressed: () {
                         _clearSearch();
                       },
@@ -151,7 +151,7 @@ class _SearchScreenState extends State<SearchScreen>
                     child: Container(
                       height: 42,
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
+                        color: Theme.of(context).inputDecorationTheme.fillColor ?? Theme.of(context).cardColor,
                         borderRadius: BorderRadius.circular(24),
                       ),
                       child: TextField(
@@ -166,16 +166,16 @@ class _SearchScreenState extends State<SearchScreen>
                         onSubmitted: _performSearch,
                         decoration: InputDecoration(
                           hintText: 'Search Twitter',
-                          hintStyle: TextStyle(color: Colors.grey.shade600),
+                          hintStyle: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color?.withOpacity(0.6)),
                           prefixIcon: Icon(
                             Icons.search,
-                            color: Colors.grey.shade600,
+                            color: Theme.of(context).iconTheme.color,
                           ),
                           suffixIcon: _searchController.text.isNotEmpty
                               ? IconButton(
                                   icon: Icon(
                                     Icons.clear,
-                                    color: Colors.grey.shade600,
+                                    color: Theme.of(context).iconTheme.color,
                                   ),
                                   onPressed: _clearSearch,
                                 )
@@ -183,6 +183,7 @@ class _SearchScreenState extends State<SearchScreen>
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(
                             vertical: 10,
+                            
                           ),
                         ),
                         style: const TextStyle(fontSize: 15),
@@ -212,14 +213,14 @@ class _SearchScreenState extends State<SearchScreen>
                 decoration: BoxDecoration(
                   color: Theme.of(context).scaffoldBackgroundColor,
                   border: Border(
-                    bottom: BorderSide(color: Colors.grey.shade200),
+                    bottom: BorderSide(color: Theme.of(context).dividerColor),
                   ),
                 ),
                 child: TabBar(
                   controller: _tabController,
                   labelColor: Theme.of(context).textTheme.bodyLarge?.color,
-                  unselectedLabelColor: Colors.grey,
-                  indicatorColor: Colors.lightBlueAccent,
+                  unselectedLabelColor: Theme.of(context).textTheme.bodyLarge?.color?.withOpacity(0.6),
+                  indicatorColor: Theme.of(context).primaryColor,
                   indicatorWeight: 3,
                   tabs: const [
                     Tab(text: 'Users'),
@@ -276,10 +277,10 @@ class _SearchScreenState extends State<SearchScreen>
           ),
           ...recentSearches.map(
             (search) => ListTile(
-              leading: Icon(Icons.search, color: Colors.grey.shade600),
+              leading: Icon(Icons.search, color: Theme.of(context).iconTheme.color),
               title: Text(search),
               trailing: IconButton(
-                icon: Icon(Icons.close, color: Colors.grey.shade600),
+                icon: Icon(Icons.close, color: Theme.of(context).iconTheme.color),
                 onPressed: () {
                   setState(() {
                     recentSearches.remove(search);
@@ -297,11 +298,11 @@ class _SearchScreenState extends State<SearchScreen>
             padding: const EdgeInsets.all(32.0),
             child: Column(
               children: [
-                Icon(Icons.search, size: 64, color: Colors.grey.shade400),
+                Icon(Icons.search, size: 64, color: Theme.of(context).iconTheme.color),
                 const SizedBox(height: 16),
                 Text(
                   'Search for people and tweets',
-                  style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+                  style: TextStyle(fontSize: 16, color: Theme.of(context).iconTheme.color?.withOpacity(0.6)),
                 ),
               ],
             ),
@@ -318,7 +319,7 @@ class _SearchScreenState extends State<SearchScreen>
           padding: const EdgeInsets.all(32.0),
           child: Text(
             'No users found for "$searchQuery"',
-            style: TextStyle(color: Colors.grey.shade600),
+            style: TextStyle(color: Theme.of(context).iconTheme.color?.withOpacity(0.6)),
           ),
         ),
       );
@@ -327,7 +328,7 @@ class _SearchScreenState extends State<SearchScreen>
     return ListView.separated(
       itemCount: userResults.length,
       separatorBuilder: (_, __) =>
-          Divider(height: 1, color: Colors.grey.shade200),
+          Divider(height: 1, color: Theme.of(context).dividerColor),
       itemBuilder: (context, index) {
         final user = userResults[index];
         return ListTile(
@@ -351,7 +352,7 @@ class _SearchScreenState extends State<SearchScreen>
           ),
           subtitle: Text(
             '@${user['handle'] ?? 'user'}',
-            style: TextStyle(color: Colors.grey.shade600),
+            style: TextStyle(color: Theme.of(context).iconTheme.color?.withOpacity(0.6)),
           ),
           trailing: Builder(builder: (context) {
             final currentUser = FirebaseAuth.instance.currentUser;
@@ -387,8 +388,8 @@ class _SearchScreenState extends State<SearchScreen>
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    backgroundColor: isFollowing ? Colors.blue : null,
-                    foregroundColor: isFollowing ? Colors.white : null,
+                    backgroundColor: isFollowing ? Theme.of(context).primaryColor : null,
+                    foregroundColor: isFollowing ? Theme.of(context).primaryIconTheme.color : null,
                   ),
                   child: Text(isFollowing ? 'Following' : 'Follow'),
                 );
@@ -413,7 +414,7 @@ class _SearchScreenState extends State<SearchScreen>
           padding: const EdgeInsets.all(32.0),
           child: Text(
             'No tweets found for "$searchQuery"',
-            style: TextStyle(color: Colors.grey.shade600),
+            style: TextStyle(color: Theme.of(context).iconTheme.color?.withOpacity(0.6)),
           ),
         ),
       );
@@ -422,7 +423,7 @@ class _SearchScreenState extends State<SearchScreen>
     return ListView.separated(
       itemCount: tweetResults.length,
       separatorBuilder: (_, __) =>
-          Divider(height: 1, thickness: 1, color: Colors.grey.shade200),
+          Divider(height: 1, thickness: 1, color: Theme.of(context).dividerColor),
       itemBuilder: (context, index) {
         return TweetCardWidget(tweet: tweetResults[index]);
       },

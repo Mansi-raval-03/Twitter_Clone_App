@@ -60,21 +60,26 @@ class _UserProfileScreenState extends State<UserProfileScreen>
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Transform.translate(
                 offset: const Offset(0, -20),
-                child: Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Theme.of(context).shadowColor, width: 2),
-                    boxShadow: [
-                      BoxShadow(color: Theme.of(context).shadowColor, blurRadius: 6, offset: const Offset(0, 3)),
-                    ],
+                child: SizedBox(
+                  width: 96,
+                  height: 96,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Theme.of(context).shadowColor, width: 2),
+                      boxShadow: [
+                        BoxShadow(color: Theme.of(context).shadowColor, blurRadius: 6, offset: const Offset(0, 3)),
+                      ],
+                    ),
+                      child: _buildAvatarWidget(profileImage),
                   ),
-                    child: _buildAvatarWidget(profileImage),
                 ),
               ),
-              SizedBox(width: 150),
+              const Spacer(),
               Builder(builder: (context) {
                 final currentUid = FirebaseAuth.instance.currentUser?.uid;
                 if (currentUid == uid) {
@@ -94,6 +99,11 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                   builder: (c, s) {
                     final following = s.data ?? false;
                     return OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: following ? Theme.of(context).primaryColor : null,
+                        foregroundColor: following ? Theme.of(context).primaryIconTheme.color : null,
+                        side: BorderSide(color: Theme.of(context).dividerColor),
+                      ),
                       onPressed: () async {
                         if (following) {
                           await DatabaseServices.unfollowUser(currentUid, uid);
@@ -238,7 +248,16 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   Widget build(BuildContext context) {
     final uid = _effectiveUid;
     if (uid == null || uid.isEmpty) {
-      return const Scaffold(body: Center(child: Text('No signed in user')));
+      return Scaffold(
+        appBar: AppBar(title: Text('Profile')),
+        body: Center(
+          child: Text(
+            widget.viewedUserId != null 
+              ? 'User not found' 
+              : 'No signed in user',
+          ),
+        ),
+      );
     }
 
     return Scaffold(
@@ -257,6 +276,47 @@ class _UserProfileScreenState extends State<UserProfileScreen>
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         stream: _profileCtrl.userDocStream(uid).asBroadcastStream(),
         builder: (context, snapshot) {
+          // Handle errors
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text('Error loading profile', style: TextStyle(fontSize: 18)),
+                  SizedBox(height: 8),
+                  Text(
+                    snapshot.error.toString().contains('permission-denied')
+                      ? 'Unable to access user profile'
+                      : 'Please try again later',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // Handle user not found
+          if (snapshot.hasData && !snapshot.data!.exists) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.person_off_outlined, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text('User profile not found', style: TextStyle(fontSize: 18)),
+                  SizedBox(height: 8),
+                  Text(
+                    'This user may not have completed their profile setup',
+                    style: TextStyle(color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            );
+          }
+
           final data = snapshot.data?.data();
           ProfileTabController tabControllerCtrl;
           try {

@@ -3,10 +3,12 @@ import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:twitter_clone_app/Route/route.dart';
+import 'package:twitter_clone_app/controller/notification_controller.dart';
 
 class SignupController extends GetxController {
-  final formKey = GlobalKey<FormState>();
 
+
+  // Text controllers for form fields
   final nameController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
@@ -26,7 +28,8 @@ class SignupController extends GetxController {
   void toggleConfirmPasswordVisibility() {
     isConfirmPasswordVisible.toggle();
   }
-
+ 
+  // Handle user signup
   Future<void> signup() async {
     if (!_validateForm()) return;
 
@@ -58,19 +61,26 @@ class SignupController extends GetxController {
 
       // Update user display name
       await user.updateDisplayName(name);
-
       // Save user data to Firestore
       await _saveUserToFirestore(user.uid, name, email);
 
-      // Sign out the user after registration
-      await _auth.signOut();
+      // Keep user signed in and register NotificationController
+      if (!Get.isRegistered<NotificationController>()) {
+        final notif = NotificationController();
+        Get.put<NotificationController>(notif);
+        notif.startFirestoreListener(user.uid);
+      } else {
+        try {
+          Get.find<NotificationController>().startFirestoreListener(user.uid);
+        } catch (_) {}
+      }
 
       Get.snackbar(
         'Success', 
-        'Account created successfully! Please login to continue.',
-        duration: const Duration(seconds: 3),
+        'Account created successfully!',
+        duration: const Duration(seconds: 2),
       );
-      Get.offAllNamed(AppRoute.login);
+      Get.offAllNamed(AppRoute.mainNavigation);
 
     } on FirebaseAuthException catch (e) {
       String errorMessage = 'Signup failed';
@@ -89,6 +99,8 @@ class SignupController extends GetxController {
     }
   }
 
+
+  // Validate form fields
   bool _validateForm() {
     final nameError = validateName(nameController.text);
     final emailError = validateEmail(emailController.text);
@@ -126,16 +138,19 @@ class SignupController extends GetxController {
     }
   }
 
+// Save user data to Firestore
   Future<void> _saveUserToFirestore(String uid, String name, String email) async {
     await _firestore.collection('users').doc(uid).set({
       'uid': uid,
       'name': name,
       'email': email,
-      'username': email.split('@')[0],
+      'username': name,
+      'handle': '@${email.split('@')[0]}',
       'bio': '',
       'location': '',
       'website': '',
       'profileImage': '',
+      'profilePicture': '',
       'coverImage': '',
       'createdAt': FieldValue.serverTimestamp(),
       // store numeric counts so FieldValue.increment works reliably
@@ -146,6 +161,7 @@ class SignupController extends GetxController {
     });
   }
 
+  // Form field validators
   String? validateName(String? value) {
     if (value == null || value.isEmpty) {
       return 'Name is required';

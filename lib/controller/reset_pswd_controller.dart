@@ -53,6 +53,7 @@ class ResetPasswordController extends GetxController {
     }
   }
 
+  // Repurposed: reset password using Firebase Auth
   Future<void> resetPassword() async {
     if (!_validatePasswords()) return;
 
@@ -68,6 +69,7 @@ class ResetPasswordController extends GetxController {
     }
   }
 
+  // Added: validate new password and confirmation
   bool _validatePasswords() {
     if (newPasswordController.text.isEmpty) {
       Get.snackbar('Error', 'Password cannot be empty');

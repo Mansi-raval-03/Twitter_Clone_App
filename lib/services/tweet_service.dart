@@ -152,6 +152,11 @@ class TweetService {
         .snapshots();
   }
 
+  /// Get Single Tweet (Real-time Stream)
+  static Stream<DocumentSnapshot> getTweetStream(String tweetId) {
+    return _firestore.collection('tweets').doc(tweetId).snapshots();
+  }
+
   /// Delete Tweet
   static Future<void> deleteTweet(String tweetId) async {
     final user = _auth.currentUser;
