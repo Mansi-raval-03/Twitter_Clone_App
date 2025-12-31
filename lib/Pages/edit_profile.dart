@@ -6,6 +6,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:twitter_clone_app/controller/profile_controller.dart';
+import 'package:twitter_clone_app/utils/image_resolver.dart';
 
 class EditProfilePage extends StatefulWidget {
   final String username;
@@ -50,7 +51,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _websiteController = TextEditingController(text: widget.website ?? '');
 
     // If caller didn't provide profile fields (empty strings), load from Firestore
-    if ((widget.username.trim().isEmpty && widget.bio.trim().isEmpty && widget.profileImageUrl.trim().isEmpty) ||
+    if ((widget.username.trim().isEmpty &&
+            widget.bio.trim().isEmpty &&
+            widget.profileImageUrl.trim().isEmpty) ||
         widget.profileImageUrl.trim().isEmpty) {
       _loadProfile();
     } else {
@@ -67,15 +70,23 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
 
     try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
       final data = doc.data();
       if (data != null) {
-        _usernameController.text = (data['username'] ?? _usernameController.text).toString();
+        _usernameController.text =
+            (data['username'] ?? _usernameController.text).toString();
         _bioController.text = (data['bio'] ?? _bioController.text).toString();
-        _nameController.text = (data['name'] ?? _nameController.text).toString();
-        _locationController.text = (data['location'] ?? _locationController.text).toString();
-        _websiteController.text = (data['website'] ?? _websiteController.text).toString();
-        _initialProfileImageUrl = (data['profileImage'] ?? data['profilePicture'] ?? '').toString();
+        _nameController.text = (data['name'] ?? _nameController.text)
+            .toString();
+        _locationController.text =
+            (data['location'] ?? _locationController.text).toString();
+        _websiteController.text = (data['website'] ?? _websiteController.text)
+            .toString();
+        _initialProfileImageUrl =
+            (data['profileImage'] ?? data['profilePicture'] ?? '').toString();
       }
     } catch (_) {
       // ignore load errors; keep defaults
@@ -109,17 +120,35 @@ class _EditProfilePageState extends State<EditProfilePage> {
         backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
         elevation: Theme.of(context).appBarTheme.elevation ?? 1,
         leading: IconButton(
-          icon: Icon(Icons.close, color: Theme.of(context).appBarTheme.foregroundColor),
+          icon: Icon(
+            Icons.close,
+            color: Theme.of(context).appBarTheme.foregroundColor,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('Edit Profile', style: TextStyle(color: Theme.of(context).appBarTheme.foregroundColor)),
+        title: Text(
+          'Edit Profile',
+          style: TextStyle(
+            color: Theme.of(context).appBarTheme.foregroundColor,
+          ),
+        ),
         centerTitle: false,
         actions: [
           TextButton(
             onPressed: _isSaving ? null : _handleSave,
             child: _isSaving
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                : Text('Save', style: TextStyle(color: Theme.of(context).appBarTheme.foregroundColor, fontSize: 16)),
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(
+                    'Save',
+                    style: TextStyle(
+                      color: Theme.of(context).appBarTheme.foregroundColor,
+                      fontSize: 16,
+                    ),
+                  ),
           ),
         ],
       ),
@@ -128,58 +157,86 @@ class _EditProfilePageState extends State<EditProfilePage> {
           : SingleChildScrollView(
               child: Column(
                 children: [
-            Container(
-              color: Colors.blue[100],
-              height: 150,
-              child: Center(
-                child: Stack(
-                  children: [
-                    _buildProfileAvatar(),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: CircleAvatar(
-                          backgroundColor: Colors.blue,
-                          child: IconButton(
-                            icon: _isUploadingImage ? const SizedBox(width:20,height:20, child:CircularProgressIndicator(strokeWidth:2, color: Colors.white)) : const Icon(Icons.camera_alt, color: Colors.white),
-                            onPressed: _isUploadingImage ? null : () async {
-                              await _pickAndUploadImage();
-                            },
+                  Container(
+                    color: Colors.blue[100],
+                    height: 150,
+                    child: Center(
+                      child: Stack(
+                        children: [
+                          _buildProfileAvatar(),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: CircleAvatar(
+                              backgroundColor: Colors.blue,
+                              child: IconButton(
+                                icon: _isUploadingImage
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.camera_alt,
+                                        color: Colors.white,
+                                      ),
+                                onPressed: _isUploadingImage
+                                    ? null
+                                    : () async {
+                                        await _pickAndUploadImage();
+                                      },
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        left: 8,
-                        child: CircleAvatar(
-                          backgroundColor: Colors.black87,
-                          child: IconButton(
-                            icon: _isUploadingCover ? const SizedBox(width:20,height:20, child:CircularProgressIndicator(strokeWidth:2, color: Colors.white)) : const Icon(Icons.photo_size_select_large, color: Colors.white),
-                            onPressed: _isUploadingCover ? null : () async {
-                              await _pickAndUploadCover();
-                            },
+                          Positioned(
+                            bottom: 0,
+                            left: 8,
+                            child: CircleAvatar(
+                              backgroundColor: Colors.black87,
+                              child: IconButton(
+                                icon: _isUploadingCover
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.photo_size_select_large,
+                                        color: Colors.white,
+                                      ),
+                                onPressed: _isUploadingCover
+                                    ? null
+                                    : () async {
+                                        await _pickAndUploadCover();
+                                      },
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  _buildTextField('Name', _nameController),
-                  _buildTextField('Username', _usernameController),
-                  _buildTextField('Bio', _bioController, maxLines: 3),
-                  _buildTextField('Location', _locationController),
-                  _buildTextField('Website', _websiteController),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        _buildTextField('Name', _nameController),
+                        _buildTextField('Username', _usernameController),
+                        _buildTextField('Bio', _bioController, maxLines: 3),
+                        _buildTextField('Location', _locationController),
+                        _buildTextField('Website', _websiteController),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -187,7 +244,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Not signed in')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Not signed in')));
       return;
     }
 
@@ -202,7 +261,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     setState(() => _isSaving = true);
     try {
-      await FirebaseFirestore.instance.collection('users').doc(uid).set(updates, SetOptions(merge: true));
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .set(updates, SetOptions(merge: true));
 
       // Refresh controller so profile screen updates
       try {
@@ -211,18 +273,26 @@ class _EditProfilePageState extends State<EditProfilePage> {
       } catch (_) {}
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile updated')));
       if (!mounted) return;
       Navigator.pop(context, updates);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save: $e')));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, {int maxLines = 1}) {
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller, {
+    int maxLines = 1,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12.0),
       child: TextField(
@@ -240,14 +310,34 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Widget _buildProfileAvatar() {
     // Local picked image preview
     if (_pickedImage != null) {
-      return CircleAvatar(radius: 50, backgroundImage: FileImage(File(_pickedImage!.path)));
+      return CircleAvatar(
+        radius: 50,
+        backgroundImage: FileImage(File(_pickedImage!.path)),
+      );
     }
-    final source = (_initialProfileImageUrl != null && _initialProfileImageUrl!.trim().isNotEmpty)
+    final source =
+        (_initialProfileImageUrl != null &&
+            _initialProfileImageUrl!.trim().isNotEmpty)
         ? _initialProfileImageUrl!
         : widget.profileImageUrl;
     final raw = source.trim();
     if (raw.isEmpty) {
-      return const CircleAvatar(radius: 50, child: Icon(Icons.person, size: 40));
+      return const CircleAvatar(
+        radius: 50,
+        child: Icon(Icons.person, size: 40),
+      );
+    }
+
+    // Check for data URI (base64 encoded image)
+    if (raw.startsWith('data:')) {
+      final provider = resolveImageProvider(raw);
+      if (provider != null) {
+        return CircleAvatar(radius: 50, backgroundImage: provider);
+      }
+      return const CircleAvatar(
+        radius: 50,
+        child: Icon(Icons.person, size: 40),
+      );
     }
 
     if (raw.startsWith('http')) {
@@ -258,10 +348,19 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return FutureBuilder<String?>(
       future: _resolveStorageOrUrl(raw),
       builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) return const CircleAvatar(radius: 50);
-        if (snap.hasError) return const CircleAvatar(radius: 50, child: Icon(Icons.person, size: 40));
+        if (snap.connectionState == ConnectionState.waiting)
+          return const CircleAvatar(radius: 50);
+        if (snap.hasError)
+          return const CircleAvatar(
+            radius: 50,
+            child: Icon(Icons.person, size: 40),
+          );
         final url = snap.data;
-        if (url == null || url.isEmpty) return const CircleAvatar(radius: 50, child: Icon(Icons.person, size: 40));
+        if (url == null || url.isEmpty)
+          return const CircleAvatar(
+            radius: 50,
+            child: Icon(Icons.person, size: 40),
+          );
         return CircleAvatar(radius: 50, backgroundImage: NetworkImage(url));
       },
     );
@@ -293,12 +392,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Future<void> _pickAndUploadImage() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Not signed in')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Not signed in')));
       return;
     }
 
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
     if (picked == null) return;
 
     setState(() {
@@ -308,7 +412,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     try {
       final file = File(picked.path);
-      final ref = FirebaseStorage.instance.ref().child('users/$uid/profile_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      final ref = FirebaseStorage.instance.ref().child(
+        'users/$uid/profile_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
       final uploadTask = ref.putFile(file);
       await uploadTask.whenComplete(() {});
       // Save download URL (safer) instead of storage path to avoid ref lookup errors
@@ -318,15 +424,22 @@ class _EditProfilePageState extends State<EditProfilePage> {
       _initialProfileImageUrl = _uploadedProfilePath;
 
       // Immediately persist the profileImage download URL so other screens see it
-      await FirebaseFirestore.instance.collection('users').doc(uid).set({'profileImage': _uploadedProfilePath, 'updatedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'profileImage': _uploadedProfilePath,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
       try {
         await _profileCtrl?.loadCurrentUser();
       } catch (_) {}
 
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile image uploaded')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile image uploaded')));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Image upload failed: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Image upload failed: $e')));
       setState(() {
         _pickedImage = null;
       });
@@ -338,34 +451,50 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Future<void> _pickAndUploadCover() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Not signed in')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Not signed in')));
       return;
-    } 
+    }
 
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
     if (picked == null) return;
- 
-    setState(() { _isUploadingCover = true; });
+
+    setState(() {
+      _isUploadingCover = true;
+    });
 
     try {
       final file = File(picked.path);
-      final ref = FirebaseStorage.instance.ref().child('users/$uid/cover_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      final ref = FirebaseStorage.instance.ref().child(
+        'users/$uid/cover_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
       final uploadTask = ref.putFile(file);
       await uploadTask.whenComplete(() {});
       final downloadUrl = await ref.getDownloadURL();
       _uploadedCoverPath = downloadUrl;
 
       // Persist the coverImage download URL
-      await FirebaseFirestore.instance.collection('users').doc(uid).set({'coverImage': _uploadedCoverPath, 'updatedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'coverImage': _uploadedCoverPath,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
       try {
         await _profileCtrl?.loadCurrentUser();
       } catch (_) {}
 
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cover image uploaded')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Cover image uploaded')));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Cover upload failed: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Cover upload failed: $e')));
     } finally {
       if (mounted) setState(() => _isUploadingCover = false);
     }

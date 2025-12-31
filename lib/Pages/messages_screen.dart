@@ -249,6 +249,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
     return InkWell(
       onTap: () => msgcontroller.navigateToChat(user),
+      onLongPress: () => _showChatOptions(context, user),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
@@ -298,16 +299,31 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   Row(
                     children: [
                       Expanded(
-                        child: Text(
-                          user['username'] ?? '',
-                          style: TextStyle(
-                            fontWeight: hasUnread
-                                ? FontWeight.w700
-                                : FontWeight.w600,
-                            fontSize: 15,
-                            color: theme.textTheme.titleLarge?.color,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+                        child: Row(
+                          children: [
+                            if (user['isMuted'] == true) ...[
+                              Icon(
+                                Icons.volume_off,
+                                size: 16,
+                                color: theme.textTheme.bodyLarge?.color
+                                    ?.withOpacity(0.6),
+                              ),
+                              const SizedBox(width: 4),
+                            ],
+                            Expanded(
+                              child: Text(
+                                user['username'] ?? '',
+                                style: TextStyle(
+                                  fontWeight: hasUnread
+                                      ? FontWeight.w700
+                                      : FontWeight.w600,
+                                  fontSize: 15,
+                                  color: theme.textTheme.titleLarge?.color,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       if (user['lastMessageTime'] != null &&
@@ -376,6 +392,150 @@ class _MessagesScreenState extends State<MessagesScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // Show chat options (delete, mute)
+  void _showChatOptions(BuildContext context, Map<String, dynamic> user) {
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header with user info
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundImage:
+                          user['profileImage'] != null &&
+                              user['profileImage'].toString().isNotEmpty
+                          ? resolveImageProvider(user['profileImage'])
+                          : null,
+                      backgroundColor: Theme.of(
+                        context,
+                      ).scaffoldBackgroundColor,
+                      child:
+                          (user['profileImage'] == null ||
+                              user['profileImage'].toString().isEmpty)
+                          ? Icon(
+                              Icons.person,
+                              color: Theme.of(context).iconTheme.color,
+                            )
+                          : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            user['username'] ?? 'User',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                          ),
+                          Text(
+                            '@${user['handle'] ?? 'user'}',
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyLarge?.color?.withOpacity(0.6),
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: Theme.of(context).dividerColor,
+              ),
+              // Mute/Unmute option
+              ListTile(
+                leading: Icon(
+                  (user['isMuted'] == true)
+                      ? Icons.volume_up_outlined
+                      : Icons.volume_off_outlined,
+                  color: Theme.of(context).iconTheme.color,
+                ),
+                title: Text(
+                  (user['isMuted'] == true)
+                      ? 'Unmute conversation'
+                      : 'Mute conversation',
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  msgcontroller.toggleMuteChat(
+                    user['id'],
+                    user['isMuted'] == true,
+                  );
+                },
+              ),
+              // Delete option
+              ListTile(
+                leading: Icon(
+                  Icons.delete_outline,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                title: Text(
+                  'Delete conversation',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _confirmDeleteChat(context, user);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Confirm delete dialog
+  void _confirmDeleteChat(BuildContext context, Map<String, dynamic> user) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        title: const Text('Delete conversation?'),
+        content: Text(
+          'This will delete your conversation with ${user['username']}. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              msgcontroller.deleteChat(user['id']);
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
       ),
     );
   }

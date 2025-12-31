@@ -3,11 +3,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:twitter_clone_app/services/notification_service.dart';
 
 class ChatScreenController extends GetxController {
   final TextEditingController messageController = TextEditingController();
   final ScrollController scrollController = ScrollController();
-  
+
   final String otherUserId;
   final String otherUserName;
   bool _statusUpdateScheduled = false;
@@ -52,48 +53,33 @@ class ChatScreenController extends GetxController {
           .doc(getChatId())
           .collection('messages')
           .add({
-        'senderId': currentUser.uid,
-        'receiverId': otherUserId,
-        'message': message,
-        'timestamp': FieldValue.serverTimestamp(),
-        'isRead': false,
-        'deliveredAt': null,
-        'readAt': null,
-      });
+            'senderId': currentUser.uid,
+            'receiverId': otherUserId,
+            'message': message,
+            'timestamp': FieldValue.serverTimestamp(),
+            'isRead': false,
+            'deliveredAt': null,
+            'readAt': null,
+          });
 
       // Update chat metadata
-      await FirebaseFirestore.instance.collection('chats').doc(getChatId()).set({
-        'participants': [currentUser.uid, otherUserId],
-        'lastMessage': message,
-        'lastMessageTime': FieldValue.serverTimestamp(),
-        'lastSenderId': currentUser.uid,
-        'unreadCounts.$otherUserId': FieldValue.increment(1),
-        'unreadCounts.${currentUser.uid}': FieldValue.increment(0),
-      }, SetOptions(merge: true));
+      await FirebaseFirestore.instance.collection('chats').doc(getChatId()).set(
+        {
+          'participants': [currentUser.uid, otherUserId],
+          'lastMessage': message,
+          'lastMessageTime': FieldValue.serverTimestamp(),
+          'lastSenderId': currentUser.uid,
+          'unreadCounts.$otherUserId': FieldValue.increment(1),
+          'unreadCounts.${currentUser.uid}': FieldValue.increment(0),
+        },
+        SetOptions(merge: true),
+      );
 
-      // Write a notification document for the receiver
-      try {
-        final now = DateTime.now();
-        await FirebaseFirestore.instance.collection('notifications').add({
-          'to': otherUserId,
-          'from': currentUser.uid,
-          'title': 'New message',
-          'body': message,
-          'time': FieldValue.serverTimestamp(),
-          'type': 'message',
-          'read': false,
-          'meta': {
-            'username': otherUserName,
-            'handle': currentUser.email != null ? currentUser.email!.split('@')[0] : '',
-            'profileImage': currentUser.photoURL ?? '',
-            'message': message,
-            'timeAgo': DateFormat('h:mm a').format(now),
-            'fromUserId': currentUser.uid,
-          },
-        });
-      } catch (e) {
-        debugPrint('Failed to write notification: $e');
-      }
+      // Send notification to the receiver using NotificationService
+      await NotificationService.notifyMessage(
+        receiverId: otherUserId,
+        messageContent: message,
+      );
 
       scrollToBottom();
     } catch (e) {
@@ -107,6 +93,30 @@ class ChatScreenController extends GetxController {
         scrollController.position.maxScrollExtent,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
+      );
+    }
+  }
+
+  Future<void> deleteMessage(String messageId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('chats')
+          .doc(getChatId())
+          .collection('messages')
+          .doc(messageId)
+          .delete();
+
+      Get.snackbar(
+        'Message deleted',
+        'The message has been removed',
+        duration: const Duration(seconds: 2),
+      );
+    } catch (e) {
+      debugPrint('Error deleting message: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to delete message',
+        duration: const Duration(seconds: 2),
       );
     }
   }
@@ -167,10 +177,7 @@ class ChatScreenController extends GetxController {
     }
 
     // Clear unread count for this chat for current user once messages are viewed
-    await FirebaseFirestore.instance
-        .collection('chats')
-        .doc(getChatId())
-        .set({
+    await FirebaseFirestore.instance.collection('chats').doc(getChatId()).set({
       'unreadCounts.$currentUserId': 0,
     }, SetOptions(merge: true));
   }

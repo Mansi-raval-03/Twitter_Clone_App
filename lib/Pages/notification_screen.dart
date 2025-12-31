@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:twitter_clone_app/Drawer/app_drawer.dart';
 import 'package:twitter_clone_app/Model/notification_Model.dart';
 import 'package:twitter_clone_app/Pages/user_profile_screen.dart';
@@ -8,6 +9,8 @@ import 'package:twitter_clone_app/utils/image_resolver.dart';
 import 'package:twitter_clone_app/controller/notification_controller.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:twitter_clone_app/Pages/chat_screen.dart';
+import 'package:twitter_clone_app/tweet/tweet_model.dart';
+import 'package:twitter_clone_app/tweet/tweet_detail_screen.dart';
 
 class NotificationScreen extends StatefulWidget {
   static const route = '/notification';
@@ -18,7 +21,8 @@ class NotificationScreen extends StatefulWidget {
   State<NotificationScreen> createState() => _NotificationScreenState();
 }
 
-class _NotificationScreenState extends State<NotificationScreen> with SingleTickerProviderStateMixin {
+class _NotificationScreenState extends State<NotificationScreen>
+    with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   late final NotificationController _controller;
 
@@ -26,17 +30,23 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _controller = Get.put(NotificationController());
 
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) {
-      _controller.startListener(uid);
+    // Use Get.find to get the existing controller instance
+    // or create one if it doesn't exist (fallback)
+    try {
+      _controller = Get.find<NotificationController>();
+    } catch (e) {
+      _controller = Get.put(NotificationController(), permanent: true);
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        _controller.startListener(uid);
+      }
     }
   }
 
   @override
   void dispose() {
-    _controller.stopListener();
+    // Don't stop the listener as it's used globally
     _tabController.dispose();
     super.dispose();
   }
@@ -46,13 +56,12 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
     // accept both String and Map payloads safely
     final routeArgs = ModalRoute.of(context)?.settings.arguments;
     if (routeArgs is String) {
-    } else if (routeArgs is Map) {
-    }
+    } else if (routeArgs is Map) {}
 
     return Scaffold(
       drawer: AppDrawer(),
       appBar: AppBar(
-         leading: Builder(
+        leading: Builder(
           builder: (context) => IconButton(
             icon: Icon(
               Icons.person_4_outlined,
@@ -64,18 +73,24 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
           ),
         ),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        title: Text('Notifications', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
+        title: Text(
+          'Notifications',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
+          ),
+        ),
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [Tab(text: 'All'), Tab(text: 'Mentions')],
+          tabs: const [
+            Tab(text: 'All'),
+            Tab(text: 'Mentions'),
+          ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
-          _buildList(),
-          _buildList(onlyMentions: true),
-        ],
+        children: [_buildList(), _buildList(onlyMentions: true)],
       ),
     );
   }
@@ -85,8 +100,8 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
     return Obx(() {
       final list = onlyMentions
           ? _controller.notifications
-              .where((n) => n.type == NotificationType.mention)
-              .toList()
+                .where((n) => n.type == NotificationType.mention)
+                .toList()
           : _controller.notifications;
 
       if (list.isEmpty) {
@@ -154,25 +169,62 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
         color = Theme.of(context).colorScheme.primary;
         action = 'system notification';
         break;
-      }
+    }
 
     return InkWell(
       onTap: () async {
-        await _controller.consumeNotification(n);
+        await _controller.markAsRead(n.id);
+
+        // Navigate based on notification type
         if (n.type == NotificationType.message) {
           final fromId = meta['fromUserId'];
           if (fromId != null) {
-            Get.to(() => ChatScreen(
-                  userId: fromId,
-                  userName: username,
-                  userHandle: handle,
-                  profileImage: profileImage,
-                ));
+            Get.to(
+              () => ChatScreen(
+                userId: fromId,
+                userName: username,
+                userHandle: handle,
+                profileImage: profileImage,
+              ),
+            );
             return;
+          }
+        } else if (n.type == NotificationType.follow) {
+          // Navigate to the follower's profile
+          final fromId = meta['fromUserId'];
+          if (fromId != null) {
+            Get.to(() => UserProfileScreen(viewedUserId: fromId));
+            return;
+          }
+        } else if (n.type == NotificationType.like ||
+            n.type == NotificationType.retweet ||
+            n.type == NotificationType.reply ||
+            n.type == NotificationType.mention) {
+          // Navigate to the tweet detail page
+          final tweetId = meta['tweetId'];
+          if (tweetId != null) {
+            // Get tweet and navigate to detail screen
+            try {
+              final tweetDoc = await FirebaseFirestore.instance
+                  .collection('tweets')
+                  .doc(tweetId)
+                  .get();
+              if (tweetDoc.exists) {
+                final tweet = TweetModel.fromDoc(tweetDoc);
+                Get.to(() => TweetDetailScreen(tweet: tweet));
+                return;
+              }
+            } catch (e) {
+              Get.snackbar('Error', 'Could not load tweet');
+            }
           }
         }
 
-        Get.to(() => UserProfileScreen(viewedUserId: handle));
+        // Fallback to user profile
+        final fromId = meta['fromUserId'];
+        if (fromId != null) {
+          Get.to(() => UserProfileScreen(viewedUserId: fromId));
+        }
       },
       child: Container(
         color: n.read
@@ -192,21 +244,19 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                     children: [
                       CircleAvatar(
                         radius: 16,
-                        backgroundImage:
-                            resolveImageProvider(profileImage),
+                        backgroundImage: resolveImageProvider(profileImage),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: RichText(
                           text: TextSpan(
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyLarge,
+                            style: Theme.of(context).textTheme.bodyLarge,
                             children: [
                               TextSpan(
                                 text: username,
                                 style: const TextStyle(
-                                    fontWeight: FontWeight.bold),
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                               TextSpan(text: ' $action'),
                             ],
@@ -217,18 +267,12 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                   ),
                   if (content != null) ...[
                     const SizedBox(height: 8),
-                    Text(
-                      content,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    Text(content, maxLines: 2, overflow: TextOverflow.ellipsis),
                   ],
                   const SizedBox(height: 6),
                   Text(
                     timeago.format(n.time, locale: 'en_short'),
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall,
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
               ),
@@ -240,10 +284,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
   }
 
   // empty state widget
-  Widget _emptyState({
-    required String title,
-    required String subtitle,
-  }) {
+  Widget _emptyState({required String title, required String subtitle}) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -252,9 +293,10 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
           children: [
             const Icon(Icons.notifications_none, size: 64),
             const SizedBox(height: 16),
-            Text(title,
-                style: const TextStyle(
-                    fontSize: 20, fontWeight: FontWeight.bold)),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             Text(subtitle, textAlign: TextAlign.center),
           ],

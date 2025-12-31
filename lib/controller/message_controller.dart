@@ -1,4 +1,4 @@
- import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -7,11 +7,13 @@ import 'package:twitter_clone_app/Pages/user_profile_screen.dart';
 
 class MessageController extends GetxController {
   final TextEditingController searchController = TextEditingController();
-  
+
   final RxList<Map<String, dynamic>> allUsers = <Map<String, dynamic>>[].obs;
-  final RxList<Map<String, dynamic>> filteredUsers = <Map<String, dynamic>>[].obs;
+  final RxList<Map<String, dynamic>> filteredUsers =
+      <Map<String, dynamic>>[].obs;
   final RxList<Map<String, dynamic>> allContacts = <Map<String, dynamic>>[].obs;
-  final RxList<Map<String, dynamic>> filteredContacts = <Map<String, dynamic>>[].obs;
+  final RxList<Map<String, dynamic>> filteredContacts =
+      <Map<String, dynamic>>[].obs;
   final RxBool isLoading = false.obs;
 
   @override
@@ -48,9 +50,9 @@ class MessageController extends GetxController {
       for (final doc in convSnapshot.docs) {
         final data = doc.data();
         final participants = List<String>.from(data['participants'] ?? []);
-        
+
         if (participants.length != 2) continue;
-        
+
         final otherId = participants.firstWhere(
           (id) => id != currentUser.uid,
           orElse: () => '',
@@ -63,23 +65,32 @@ class MessageController extends GetxController {
               .doc(otherId)
               .get();
           final otherData = otherDoc.data() ?? {};
-          final unreadCounts = Map<String, dynamic>.from(data['unreadCounts'] ?? {});
+          final unreadCounts = Map<String, dynamic>.from(
+            data['unreadCounts'] ?? {},
+          );
           final unread = (unreadCounts[currentUser.uid] ?? 0) as num;
+          final mutedBy = Map<String, dynamic>.from(data['mutedBy'] ?? {});
+          final isMuted = (mutedBy[currentUser.uid] ?? false) as bool;
 
           users.add({
             'id': otherId,
             'username': otherData['username'] ?? otherData['name'] ?? 'User',
-            'handle': otherData['handle'] ??
+            'handle':
+                otherData['handle'] ??
                 (otherData['email'] != null
                     ? otherData['email'].toString().split('@')[0]
                     : 'user'),
-            'profileImage': otherData['profileImage'] ?? otherData['photoURL'] ?? '',
+            'profileImage':
+                otherData['profileImage'] ?? otherData['photoURL'] ?? '',
             'lastMessage': (data['lastMessage'] ?? '') as String,
             'lastMessageTime': _formatLastMessageTime(
-                (data['lastMessageTime'] as Timestamp?)),
+              (data['lastMessageTime'] as Timestamp?),
+            ),
             'lastMessageTimestamp': data['lastMessageTime'],
+            'lastMessageSenderId': data['lastMessageSenderId'],
             'isOnline': otherData['isOnline'] ?? false,
             'unreadCount': unread,
+            'isMuted': isMuted,
           });
         } catch (e) {
           debugPrint('Error loading user $otherId: $e');
@@ -119,68 +130,74 @@ class MessageController extends GetxController {
         .where('participants', arrayContains: currentUser.uid)
         .snapshots()
         .listen((snapshot) async {
-      List<Map<String, dynamic>> users = [];
+          List<Map<String, dynamic>> users = [];
 
-      for (final doc in snapshot.docs) {
-        final data = doc.data();
-        final participants = List<String>.from(data['participants'] ?? []);
-        
-        // Only show private 1-to-1 conversations
-        if (participants.length != 2) continue;
-        
-        final otherId = participants.firstWhere(
-          (id) => id != currentUser.uid,
-          orElse: () => '',
-        );
-        if (otherId.isEmpty) continue;
+          for (final doc in snapshot.docs) {
+            final data = doc.data();
+            final participants = List<String>.from(data['participants'] ?? []);
 
-        // fetch other user's profile
-        try {
-          final otherDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(otherId)
-              .get();
-          final otherData = otherDoc.data() ?? {};
-          final unreadCounts = Map<String, dynamic>.from(data['unreadCounts'] ?? {});
-          final unread = (unreadCounts[currentUser.uid] ?? 0) as num;
+            // Only show private 1-to-1 conversations
+            if (participants.length != 2) continue;
 
-          users.add({
-            'id': otherId,
-            'username': otherData['username'] ?? otherData['name'] ?? 'User',
-            'handle': otherData['handle'] ??
-                (otherData['email'] != null
-                    ? otherData['email'].toString().split('@')[0]
-                    : 'user'),
-            'profileImage': otherData['profileImage'] ?? otherData['photoURL'] ?? '',
-            'lastMessage': (data['lastMessage'] ?? '') as String,
-            'lastMessageTime': _formatLastMessageTime(
-                (data['lastMessageTime'] as Timestamp?)),
-            'lastMessageTimestamp': data['lastMessageTime'],
-            'isOnline': otherData['isOnline'] ?? false,
-            'unreadCount': unread,
+            final otherId = participants.firstWhere(
+              (id) => id != currentUser.uid,
+              orElse: () => '',
+            );
+            if (otherId.isEmpty) continue;
+
+            // fetch other user's profile
+            try {
+              final otherDoc = await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(otherId)
+                  .get();
+              final otherData = otherDoc.data() ?? {};
+              final unreadCounts = Map<String, dynamic>.from(
+                data['unreadCounts'] ?? {},
+              );
+              final unread = (unreadCounts[currentUser.uid] ?? 0) as num;
+
+              users.add({
+                'id': otherId,
+                'username':
+                    otherData['username'] ?? otherData['name'] ?? 'User',
+                'handle':
+                    otherData['handle'] ??
+                    (otherData['email'] != null
+                        ? otherData['email'].toString().split('@')[0]
+                        : 'user'),
+                'profileImage':
+                    otherData['profileImage'] ?? otherData['photoURL'] ?? '',
+                'lastMessage': (data['lastMessage'] ?? '') as String,
+                'lastMessageTime': _formatLastMessageTime(
+                  (data['lastMessageTime'] as Timestamp?),
+                ),
+                'lastMessageTimestamp': data['lastMessageTime'],
+                'isOnline': otherData['isOnline'] ?? false,
+                'unreadCount': unread,
+              });
+            } catch (e) {
+              debugPrint('Error loading user $otherId: $e');
+            }
+          }
+
+          // Sort by lastMessageTimestamp descending (newest first)
+          users.sort((a, b) {
+            final aTime = a['lastMessageTimestamp'] as Timestamp?;
+            final bTime = b['lastMessageTimestamp'] as Timestamp?;
+            if (aTime == null && bTime == null) return 0;
+            if (aTime == null) return 1;
+            if (bTime == null) return -1;
+            return bTime.compareTo(aTime);
           });
-        } catch (e) {
-          debugPrint('Error loading user $otherId: $e');
-        }
-      }
 
-      // Sort by lastMessageTimestamp descending (newest first)
-      users.sort((a, b) {
-        final aTime = a['lastMessageTimestamp'] as Timestamp?;
-        final bTime = b['lastMessageTimestamp'] as Timestamp?;
-        if (aTime == null && bTime == null) return 0;
-        if (aTime == null) return 1;
-        if (bTime == null) return -1;
-        return bTime.compareTo(aTime);
-      });
-
-      allUsers.value = users;
-      if (searchController.text.isEmpty) {
-        filteredUsers.value = users;
-      } else {
-        filterUsers(searchController.text);
-      }
-    });
+          allUsers.value = users;
+          if (searchController.text.isEmpty) {
+            filteredUsers.value = users;
+          } else {
+            filterUsers(searchController.text);
+          }
+        });
   }
 
   // Get real-time conversations stream
@@ -195,61 +212,71 @@ class MessageController extends GetxController {
         .where('participants', arrayContains: currentUser.uid)
         .snapshots()
         .asyncMap((snapshot) async {
-      List<Map<String, dynamic>> users = [];
+          List<Map<String, dynamic>> users = [];
 
-      for (final doc in snapshot.docs) {
-        final data = doc.data();
-        final participants = List<String>.from(data['participants'] ?? []);
-        
-        if (participants.length != 2) continue;
-        
-        final otherId = participants.firstWhere(
-          (id) => id != currentUser.uid,
-          orElse: () => '',
-        );
-        if (otherId.isEmpty) continue;
+          for (final doc in snapshot.docs) {
+            final data = doc.data();
+            final participants = List<String>.from(data['participants'] ?? []);
 
-        try {
-          final otherDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(otherId)
-              .get();
-          final otherData = otherDoc.data() ?? {};
-          final unreadCounts = Map<String, dynamic>.from(data['unreadCounts'] ?? {});
-          final unread = (unreadCounts[currentUser.uid] ?? 0) as num;
+            if (participants.length != 2) continue;
 
-          users.add({
-            'id': otherId,
-            'username': otherData['username'] ?? otherData['name'] ?? 'User',
-            'handle': otherData['handle'] ??
-                (otherData['email'] != null
-                    ? otherData['email'].toString().split('@')[0]
-                    : 'user'),
-            'profileImage': otherData['profileImage'] ?? otherData['photoURL'] ?? '',
-            'lastMessage': (data['lastMessage'] ?? '') as String,
-            'lastMessageTime': _formatLastMessageTime(
-                (data['lastMessageTime'] as Timestamp?)),
-            'lastMessageTimestamp': data['lastMessageTime'],
-            'isOnline': otherData['isOnline'] ?? false,
-            'unreadCount': unread,
+            final otherId = participants.firstWhere(
+              (id) => id != currentUser.uid,
+              orElse: () => '',
+            );
+            if (otherId.isEmpty) continue;
+
+            try {
+              final otherDoc = await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(otherId)
+                  .get();
+              final otherData = otherDoc.data() ?? {};
+              final unreadCounts = Map<String, dynamic>.from(
+                data['unreadCounts'] ?? {},
+              );
+              final unread = (unreadCounts[currentUser.uid] ?? 0) as num;
+              final mutedBy = Map<String, dynamic>.from(data['mutedBy'] ?? {});
+              final isMuted = (mutedBy[currentUser.uid] ?? false) as bool;
+
+              users.add({
+                'id': otherId,
+                'username':
+                    otherData['username'] ?? otherData['name'] ?? 'User',
+                'handle':
+                    otherData['handle'] ??
+                    (otherData['email'] != null
+                        ? otherData['email'].toString().split('@')[0]
+                        : 'user'),
+                'profileImage':
+                    otherData['profileImage'] ?? otherData['photoURL'] ?? '',
+                'lastMessage': (data['lastMessage'] ?? '') as String,
+                'lastMessageTime': _formatLastMessageTime(
+                  (data['lastMessageTime'] as Timestamp?),
+                ),
+                'lastMessageTimestamp': data['lastMessageTime'],
+                'lastMessageSenderId': data['lastMessageSenderId'],
+                'isOnline': otherData['isOnline'] ?? false,
+                'unreadCount': unread,
+                'isMuted': isMuted,
+              });
+            } catch (e) {
+              debugPrint('Error loading user $otherId: $e');
+            }
+          }
+
+          // Sort by lastMessageTimestamp descending (newest first)
+          users.sort((a, b) {
+            final aTime = a['lastMessageTimestamp'] as Timestamp?;
+            final bTime = b['lastMessageTimestamp'] as Timestamp?;
+            if (aTime == null && bTime == null) return 0;
+            if (aTime == null) return 1;
+            if (bTime == null) return -1;
+            return bTime.compareTo(aTime);
           });
-        } catch (e) {
-          debugPrint('Error loading user $otherId: $e');
-        }
-      }
 
-      // Sort by lastMessageTimestamp descending (newest first)
-      users.sort((a, b) {
-        final aTime = a['lastMessageTimestamp'] as Timestamp?;
-        final bTime = b['lastMessageTimestamp'] as Timestamp?;
-        if (aTime == null && bTime == null) return 0;
-        if (aTime == null) return 1;
-        if (bTime == null) return -1;
-        return bTime.compareTo(aTime);
-      });
-
-      return users;
-    });
+          return users;
+        });
   }
 
   String _formatLastMessageTime(Timestamp? ts) {
@@ -294,14 +321,19 @@ class MessageController extends GetxController {
       final contacts = usersSnapshot.docs
           .where((d) => d.id != currentUser.uid)
           .map((doc) {
-        final data = doc.data();
-        return {
-          'id': doc.id,
-          'username': data['username'] ?? data['name'] ?? 'User',
-          'handle': data['handle'] ?? (data['email'] != null ? data['email'].toString().split('@')[0] : 'user'),
-          'profileImage': data['profileImage'] ?? data['photoURL'] ?? '',
-        };
-      }).toList();
+            final data = doc.data();
+            return {
+              'id': doc.id,
+              'username': data['username'] ?? data['name'] ?? 'User',
+              'handle':
+                  data['handle'] ??
+                  (data['email'] != null
+                      ? data['email'].toString().split('@')[0]
+                      : 'user'),
+              'profileImage': data['profileImage'] ?? data['photoURL'] ?? '',
+            };
+          })
+          .toList();
 
       allContacts.value = contacts;
       filteredContacts.value = contacts;
@@ -334,12 +366,14 @@ class MessageController extends GetxController {
         'unreadCounts': {currentUser.uid: 0},
       }, SetOptions(merge: true));
     }
-    Get.to(() => ChatScreen(
-          userId: user['id'],
-          userName: user['username'],
-          userHandle: user['handle'],
-          profileImage: user['profileImage'],
-        ));
+    Get.to(
+      () => ChatScreen(
+        userId: user['id'],
+        userName: user['username'],
+        userHandle: user['handle'],
+        profileImage: user['profileImage'],
+      ),
+    );
   }
 
   String _chatId(String a, String b) {
@@ -349,6 +383,89 @@ class MessageController extends GetxController {
 
   void navigateToUserProfile(String userId) {
     Get.to(() => UserProfileScreen(viewedUserId: userId));
+  }
+
+  // Delete chat conversation
+  Future<void> deleteChat(String otherUserId) async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+
+      final chatId = _chatId(currentUser.uid, otherUserId);
+
+      // Delete all messages in the chat
+      final messagesSnapshot = await FirebaseFirestore.instance
+          .collection('chats')
+          .doc(chatId)
+          .collection('messages')
+          .get();
+
+      for (final doc in messagesSnapshot.docs) {
+        await doc.reference.delete();
+      }
+
+      // Delete the chat document itself
+      await FirebaseFirestore.instance.collection('chats').doc(chatId).delete();
+
+      // Refresh the messages list
+      await refreshMessages();
+
+      Get.snackbar(
+        'Success',
+        'Chat deleted successfully',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Get.theme.colorScheme.primary,
+        colorText: Get.theme.colorScheme.onPrimary,
+        duration: const Duration(seconds: 2),
+      );
+    } catch (e) {
+      debugPrint('Error deleting chat: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to delete chat',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Get.theme.colorScheme.error,
+        colorText: Get.theme.colorScheme.onError,
+        duration: const Duration(seconds: 2),
+      );
+    }
+  }
+
+  // Mute/unmute chat conversation
+  Future<void> toggleMuteChat(
+    String otherUserId,
+    bool currentMuteStatus,
+  ) async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+
+      final chatId = _chatId(currentUser.uid, otherUserId);
+
+      // Store mute status in the chat document
+      await FirebaseFirestore.instance.collection('chats').doc(chatId).set({
+        'mutedBy': {currentUser.uid: !currentMuteStatus},
+      }, SetOptions(merge: true));
+
+      Get.snackbar(
+        'Success',
+        !currentMuteStatus ? 'Chat muted' : 'Chat unmuted',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Get.theme.colorScheme.primary,
+        colorText: Get.theme.colorScheme.onPrimary,
+        duration: const Duration(seconds: 2),
+      );
+    } catch (e) {
+      debugPrint('Error toggling mute: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to update mute status',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Get.theme.colorScheme.error,
+        colorText: Get.theme.colorScheme.onError,
+        duration: const Duration(seconds: 2),
+      );
+    }
   }
 }
   // UI Methods

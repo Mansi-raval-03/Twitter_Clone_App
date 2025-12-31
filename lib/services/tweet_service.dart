@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:twitter_clone_app/services/notification_service.dart';
 
 class TweetService {
   static final _firestore = FirebaseFirestore.instance;
@@ -11,7 +12,7 @@ class TweetService {
 
     if (user == null) return;
 
-    await _firestore.collection('tweets').add({
+    final tweetRef = await _firestore.collection('tweets').add({
       'uid': user.uid,
       'username': user.displayName ?? 'User',
       'handle': user.email!.split('@')[0],
@@ -23,6 +24,50 @@ class TweetService {
       'commentsCount': 0,
       'retweetsCount': 0,
     });
+
+    // Extract mentions from content and send notifications
+    await _processMentions(content, tweetRef.id);
+  }
+
+  /// Extract mentions (@username) from content and send notifications
+  static Future<void> _processMentions(String content, String tweetId) async {
+    final mentionRegex = RegExp(r'@(\w+)');
+    final mentions = mentionRegex.allMatches(content);
+
+    if (mentions.isEmpty) return;
+
+    final currentUid = _auth.currentUser?.uid;
+    if (currentUid == null) return;
+
+    // Process each mention
+    for (final match in mentions) {
+      final username = match.group(1);
+      if (username == null) continue;
+
+      try {
+        // Find user by username
+        final usersQuery = await _firestore
+            .collection('users')
+            .where('username', isEqualTo: username)
+            .limit(1)
+            .get();
+
+        if (usersQuery.docs.isNotEmpty) {
+          final mentionedUserId = usersQuery.docs.first.id;
+
+          // Don't notify yourself
+          if (mentionedUserId != currentUid) {
+            await NotificationService.notifyMention(
+              mentionedUserId: mentionedUserId,
+              tweetId: tweetId,
+              tweetContent: content,
+            );
+          }
+        }
+      } catch (e) {
+        print('Error processing mention @$username: $e');
+      }
+    }
   }
 
   /// Like / Unlike Tweet (REAL-TIME)
@@ -30,17 +75,41 @@ class TweetService {
     final uid = _auth.currentUser!.uid;
     final ref = _firestore.collection('tweets').doc(tweetId);
 
+    bool isLiking = false;
+    String? tweetOwnerId;
+    String? tweetContent;
+
     await _firestore.runTransaction((tx) async {
       final snap = await tx.get(ref);
       if (!snap.exists) return;
       final data = snap.data() ?? {};
       final current = List<String>.from(data['likes'] ?? []);
+
+      // Store tweet info for notification
+      tweetOwnerId = data['uid']?.toString();
+      tweetContent = data['content']?.toString();
+
       if (current.contains(uid)) {
-        tx.update(ref, {'likes': FieldValue.arrayRemove([uid])});
+        tx.update(ref, {
+          'likes': FieldValue.arrayRemove([uid]),
+        });
+        isLiking = false;
       } else {
-        tx.update(ref, {'likes': FieldValue.arrayUnion([uid])});
+        tx.update(ref, {
+          'likes': FieldValue.arrayUnion([uid]),
+        });
+        isLiking = true;
       }
     });
+
+    // Send notification if user liked the tweet (not unlike)
+    if (isLiking && tweetOwnerId != null && tweetOwnerId != uid) {
+      await NotificationService.notifyLike(
+        tweetOwnerId: tweetOwnerId!,
+        tweetId: tweetId,
+        tweetContent: tweetContent,
+      );
+    }
   }
 
   /// Add Reply/Comment to Tweet
@@ -48,25 +117,42 @@ class TweetService {
     final user = _auth.currentUser;
     if (user == null) return;
 
+    // Get tweet owner info for notification
+    final tweetDoc = await _firestore.collection('tweets').doc(tweetId).get();
+    final tweetData = tweetDoc.data() ?? {};
+    final tweetOwnerId = tweetData['uid']?.toString();
+
     // Create a new reply document in a subcollection
     final replyRef = await _firestore
         .collection('tweets')
         .doc(tweetId)
         .collection('replies')
         .add({
-      'uid': user.uid,
-      'username': user.displayName ?? 'User',
-      'handle': '@${user.email!.split('@')[0]}',
-      'content': replyContent,
-      'profileImage': user.photoURL ?? '',
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+          'uid': user.uid,
+          'username': user.displayName ?? 'User',
+          'handle': '@${user.email!.split('@')[0]}',
+          'content': replyContent,
+          'profileImage': user.photoURL ?? '',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
 
     // Update the comments array with just the reply ID
     final tweetRef = _firestore.collection('tweets').doc(tweetId);
     await tweetRef.update({
       'comments': FieldValue.arrayUnion([replyRef.id]),
     });
+
+    // Send notification to tweet owner
+    if (tweetOwnerId != null && tweetOwnerId != user.uid) {
+      await NotificationService.notifyReply(
+        tweetOwnerId: tweetOwnerId,
+        tweetId: tweetId,
+        replyContent: replyContent,
+      );
+    }
+
+    // Check for mentions in the reply
+    await _processMentions(replyContent, tweetId);
   }
 
   /// Toggle Retweet
@@ -116,14 +202,17 @@ class TweetService {
           'originalProfileImage': data['profileImage'] ?? '',
           'originalContent': data['content'] ?? '',
           'originalImageUrl': data['imageUrl'] ?? '',
-          'originalCreatedAt': data['createdAt'] ?? FieldValue.serverTimestamp(),
+          'originalCreatedAt':
+              data['createdAt'] ?? FieldValue.serverTimestamp(),
         };
 
         // Create a new tweet document representing the retweet
         final retweetDoc = {
           'uid': currentUser.uid,
           'username': currentUser.displayName ?? 'User',
-          'handle': currentUser.email != null ? '@${currentUser.email!.split('@')[0]}' : '@user',
+          'handle': currentUser.email != null
+              ? '@${currentUser.email!.split('@')[0]}'
+              : '@user',
           'profileImage': currentUser.photoURL ?? '',
           'isRetweet': true,
           'original': originalMap,
@@ -138,6 +227,20 @@ class TweetService {
         };
 
         tx.set(_firestore.collection('tweets').doc(), retweetDoc);
+
+        // Send notification to tweet owner (after transaction)
+        final tweetOwnerId = data['uid']?.toString();
+        final tweetContent = data['content']?.toString();
+        if (tweetOwnerId != null && tweetOwnerId != uid) {
+          // Schedule notification after transaction completes
+          Future.delayed(Duration.zero, () {
+            NotificationService.notifyRetweet(
+              tweetOwnerId: tweetOwnerId,
+              tweetId: tweetId,
+              tweetContent: tweetContent,
+            );
+          });
+        }
       }
     });
   }

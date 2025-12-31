@@ -14,27 +14,33 @@ import 'package:twitter_clone_app/theme/app_theme.dart';
 final navigatoreKey = GlobalKey<NavigatorState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await FirebaseApi().initNotifications();
   await GetStorage.init();
 
   // Register GetStorageRepository for dependency injection
   Get.put<GetStorageRepository>(GetStorageRepository(GetStorage()));
-  
+
   // Always bind NotificationController to auth state so message notifications land
-  FirebaseAuth.instance.authStateChanges().listen((user) {
+  FirebaseAuth.instance.authStateChanges().listen((user) async {
     if (user != null) {
-      final notif = Get.put<NotificationController>(NotificationController(), permanent: true);
+      // Reinitialize notifications to save FCM token for logged-in user
+      await FirebaseApi().initNotifications();
+
+      final notif = Get.put<NotificationController>(
+        NotificationController(),
+        permanent: true,
+      );
       notif.startListener(user.uid);
     }
   });
-  
+
   // Determine initial route based on authentication state
   // Note: Firebase Auth automatically persists user sessions on mobile platforms
-  final initialRoute = FirebaseAuth.instance.currentUser != null ? AppRoute.mainNavigation : AppRoute.login;
-  
+  final initialRoute = FirebaseAuth.instance.currentUser != null
+      ? AppRoute.mainNavigation
+      : AppRoute.login;
+
   runApp(MyApp(initialRoute: initialRoute));
 }
 
@@ -58,4 +64,3 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-

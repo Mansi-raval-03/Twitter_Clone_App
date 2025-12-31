@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -6,7 +7,8 @@ import 'package:twitter_clone_app/Pages/settings_screen.dart';
 import 'package:twitter_clone_app/tweet/tweet_card.dart';
 import 'package:twitter_clone_app/tweet/tweet_model.dart';
 import 'package:twitter_clone_app/services/database_services.dart';
-import 'package:twitter_clone_app/Pages/profile_screen.dart';
+import 'package:twitter_clone_app/Pages/user_profile_screen.dart';
+import 'package:twitter_clone_app/utils/image_resolver.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -17,9 +19,9 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen>
     with SingleTickerProviderStateMixin {
-  
   late TextEditingController _searchController;
   late TabController _tabController;
+  Timer? _debounce;
   bool isSearching = false;
   bool isLoading = false;
   String searchQuery = '';
@@ -32,21 +34,18 @@ class _SearchScreenState extends State<SearchScreen>
     super.initState();
     _searchController = TextEditingController();
     _tabController = TabController(length: 2, vsync: this);
-    _searchController.addListener(() {
-      setState(() {
-        isSearching = _searchController.text.isNotEmpty;
-      });
-    });
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     _tabController.dispose();
     super.dispose();
   }
 
   void _clearSearch() {
+    _debounce?.cancel();
     _searchController.clear();
     setState(() {
       isSearching = false;
@@ -56,43 +55,144 @@ class _SearchScreenState extends State<SearchScreen>
     });
   }
 
+  void _onSearchChanged(String query) {
+    // Cancel previous timer
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+
+    // Trim whitespace from query
+    final trimmedQuery = query.trim();
+
+    if (trimmedQuery.isEmpty) {
+      _clearSearch();
+      return;
+    }
+
+    // Set searching state immediately
+    setState(() {
+      isSearching = true;
+    });
+
+    // Debounce the actual search by 500ms
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      _performSearch(trimmedQuery);
+    });
+  }
+
   Future<void> _performSearch(String query) async {
-    searchQuery = query;
+    // Trim and validate query
+    final trimmedQuery = query.trim();
+    if (trimmedQuery.isEmpty) {
+      _clearSearch();
+      return;
+    }
+
+    searchQuery = trimmedQuery;
     setState(() {
       isLoading = true;
       isSearching = true;
     });
 
     try {
-      final usersSnap = await FirebaseFirestore.instance
-          .collection('users')
-          .where('username', isGreaterThanOrEqualTo: query)
-          .where('username', isLessThanOrEqualTo: '$query\uf8ff')
-          .get();
-      userResults = usersSnap.docs.map((d) {
-        final data = d.data();
-        data['id'] = d.id;
-        return data;
-      }).toList();
+      final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+      final queryLower = trimmedQuery.toLowerCase();
 
-        final tweetsSnap = await FirebaseFirestore.instance
-          .collection('tweets')
-          .where('content', isGreaterThanOrEqualTo: query)
-          .where('content', isLessThanOrEqualTo: '$query\uf8ff')
+      // Use Firestore queries to filter on server-side
+      // Query for username starting with search term
+      final usernameQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .orderBy('username')
+          .startAt([queryLower])
+          .endAt(['$queryLower\uf8ff'])
+          .limit(20)
           .get();
+
+      // Query for handle starting with search term
+      final handleQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .orderBy('handle')
+          .startAt([queryLower])
+          .endAt(['$queryLower\uf8ff'])
+          .limit(20)
+          .get();
+
+      // Query for name starting with search term
+      final nameQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .orderBy('name')
+          .startAt([queryLower])
+          .endAt(['$queryLower\uf8ff'])
+          .limit(20)
+          .get();
+
+      // Combine results and remove duplicates
+      final userMap = <String, Map<String, dynamic>>{};
+
+      for (final doc in [
+        ...usernameQuery.docs,
+        ...handleQuery.docs,
+        ...nameQuery.docs,
+      ]) {
+        if (currentUserId != null && doc.id == currentUserId) {
+          continue; // Skip current user
+        }
+
+        final data = doc.data();
+        final username = (data['username'] ?? '').toString().toLowerCase();
+        final name = (data['name'] ?? '').toString().toLowerCase();
+        final handle = (data['handle'] ?? '').toString().toLowerCase();
+
+        // Only include if it actually matches the query
+        if (username.contains(queryLower) ||
+            name.contains(queryLower) ||
+            handle.contains(queryLower)) {
+          userMap[doc.id] = {...data, 'id': doc.id};
+        }
+      }
+
+      userResults = userMap.values.toList();
+
+      // Search tweets by content
+      // Note: Firestore doesn't support full-text search well, so we'll fetch recent tweets
+      // and filter them. For better results, consider using Algolia or another search service.
+
+      // Only search tweets if query has at least 2 characters for better relevance
+      if (queryLower.length >= 2) {
+        final tweetsSnap = await FirebaseFirestore.instance
+            .collection('tweets')
+            .orderBy('createdAt', descending: true)
+            .limit(100) // Increased limit to find more relevant matches
+            .get();
+
         tweetResults = tweetsSnap.docs
-          .map((d) => TweetModel.fromDoc(d))
-          .toList();
-    } catch (_) {
-      // ignore errors for now
+            .where((d) {
+              final data = d.data();
+              final content = (data['content'] ?? '').toString().toLowerCase();
+              final username = (data['username'] ?? '')
+                  .toString()
+                  .toLowerCase();
+              final name = (data['name'] ?? '').toString().toLowerCase();
+
+              // Match against tweet content, author username, or author name
+              return content.contains(queryLower) ||
+                  username.contains(queryLower) ||
+                  name.contains(queryLower);
+            })
+            .map((d) => TweetModel.fromDoc(d))
+            .toList();
+      } else {
+        // For single character queries, don't search tweets
+        tweetResults = [];
+      }
+    } catch (e) {
+      print('Search error: $e');
     } finally {
       setState(() {
         isLoading = false;
       });
     }
 
-    if (query.isNotEmpty && !recentSearches.contains(query)) {
-      recentSearches.insert(0, query);
+    if (trimmedQuery.isNotEmpty && !recentSearches.contains(trimmedQuery)) {
+      recentSearches.insert(0, trimmedQuery);
     }
   }
 
@@ -103,13 +203,16 @@ class _SearchScreenState extends State<SearchScreen>
       appBar: AppBar(
         leading: Builder(
           builder: (context) => IconButton(
-            icon: Icon(Icons.person_4_outlined, color: Theme.of(context).iconTheme.color),
+            icon: Icon(
+              Icons.person_4_outlined,
+              color: Theme.of(context).iconTheme.color,
+            ),
             onPressed: () {
               Scaffold.of(context).openDrawer();
             },
           ),
         ),
-      
+
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0.4,
         centerTitle: false,
@@ -127,7 +230,7 @@ class _SearchScreenState extends State<SearchScreen>
           ),
         ),
       ),
-      
+
       body: SafeArea(
         child: Column(
           children: [
@@ -136,13 +239,18 @@ class _SearchScreenState extends State<SearchScreen>
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               decoration: BoxDecoration(
                 color: Theme.of(context).scaffoldBackgroundColor,
-                border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
+                border: Border(
+                  bottom: BorderSide(color: Theme.of(context).dividerColor),
+                ),
               ),
               child: Row(
                 children: [
-                  if (isSearching) 
+                  if (isSearching)
                     IconButton(
-                      icon: Icon(Icons.arrow_back, color: Theme.of(context).iconTheme.color),
+                      icon: Icon(
+                        Icons.arrow_back,
+                        color: Theme.of(context).iconTheme.color,
+                      ),
                       onPressed: () {
                         _clearSearch();
                       },
@@ -151,22 +259,27 @@ class _SearchScreenState extends State<SearchScreen>
                     child: Container(
                       height: 42,
                       decoration: BoxDecoration(
-                        color: Theme.of(context).inputDecorationTheme.fillColor ?? Theme.of(context).cardColor,
+                        color:
+                            Theme.of(context).inputDecorationTheme.fillColor ??
+                            Theme.of(context).cardColor,
                         borderRadius: BorderRadius.circular(24),
                       ),
                       child: TextField(
                         controller: _searchController,
-                        onChanged: (value) {
+                        onChanged: _onSearchChanged,
+                        onSubmitted: (value) {
+                          _debounce?.cancel();
                           if (value.isNotEmpty) {
                             _performSearch(value);
-                          } else {
-                            _clearSearch();
                           }
                         },
-                        onSubmitted: _performSearch,
                         decoration: InputDecoration(
                           hintText: 'Search Twitter',
-                          hintStyle: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color?.withOpacity(0.6)),
+                          hintStyle: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).textTheme.bodyLarge?.color?.withOpacity(0.6),
+                          ),
                           prefixIcon: Icon(
                             Icons.search,
                             color: Theme.of(context).iconTheme.color,
@@ -183,7 +296,6 @@ class _SearchScreenState extends State<SearchScreen>
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(
                             vertical: 10,
-                            
                           ),
                         ),
                         style: const TextStyle(fontSize: 15),
@@ -198,7 +310,7 @@ class _SearchScreenState extends State<SearchScreen>
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => SettingsScreen()
+                            builder: (context) => SettingsScreen(),
                           ),
                         );
                       },
@@ -219,7 +331,9 @@ class _SearchScreenState extends State<SearchScreen>
                 child: TabBar(
                   controller: _tabController,
                   labelColor: Theme.of(context).textTheme.bodyLarge?.color,
-                  unselectedLabelColor: Theme.of(context).textTheme.bodyLarge?.color?.withOpacity(0.6),
+                  unselectedLabelColor: Theme.of(
+                    context,
+                  ).textTheme.bodyLarge?.color?.withOpacity(0.6),
                   indicatorColor: Theme.of(context).primaryColor,
                   indicatorWeight: 3,
                   tabs: const [
@@ -277,10 +391,16 @@ class _SearchScreenState extends State<SearchScreen>
           ),
           ...recentSearches.map(
             (search) => ListTile(
-              leading: Icon(Icons.search, color: Theme.of(context).iconTheme.color),
+              leading: Icon(
+                Icons.search,
+                color: Theme.of(context).iconTheme.color,
+              ),
               title: Text(search),
               trailing: IconButton(
-                icon: Icon(Icons.close, color: Theme.of(context).iconTheme.color),
+                icon: Icon(
+                  Icons.close,
+                  color: Theme.of(context).iconTheme.color,
+                ),
                 onPressed: () {
                   setState(() {
                     recentSearches.remove(search);
@@ -298,11 +418,18 @@ class _SearchScreenState extends State<SearchScreen>
             padding: const EdgeInsets.all(32.0),
             child: Column(
               children: [
-                Icon(Icons.search, size: 64, color: Theme.of(context).iconTheme.color),
+                Icon(
+                  Icons.search,
+                  size: 64,
+                  color: Theme.of(context).iconTheme.color,
+                ),
                 const SizedBox(height: 16),
                 Text(
                   'Search for people and tweets',
-                  style: TextStyle(fontSize: 16, color: Theme.of(context).iconTheme.color?.withOpacity(0.6)),
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Theme.of(context).iconTheme.color?.withOpacity(0.6),
+                  ),
                 ),
               ],
             ),
@@ -319,7 +446,9 @@ class _SearchScreenState extends State<SearchScreen>
           padding: const EdgeInsets.all(32.0),
           child: Text(
             'No users found for "$searchQuery"',
-            style: TextStyle(color: Theme.of(context).iconTheme.color?.withOpacity(0.6)),
+            style: TextStyle(
+              color: Theme.of(context).iconTheme.color?.withOpacity(0.6),
+            ),
           ),
         ),
       );
@@ -340,7 +469,7 @@ class _SearchScreenState extends State<SearchScreen>
             radius: 24,
             backgroundImage:
                 user['profileImage'] != null && user['profileImage'].isNotEmpty
-                ? NetworkImage(user['profileImage'])
+                ? resolveImageProvider(user['profileImage'])
                 : null,
             child: user['profileImage'] == null || user['profileImage'].isEmpty
                 ? const Icon(Icons.person_outline)
@@ -352,54 +481,75 @@ class _SearchScreenState extends State<SearchScreen>
           ),
           subtitle: Text(
             '@${user['handle'] ?? 'user'}',
-            style: TextStyle(color: Theme.of(context).iconTheme.color?.withOpacity(0.6)),
+            style: TextStyle(
+              color: Theme.of(context).iconTheme.color?.withOpacity(0.6),
+            ),
           ),
-          trailing: Builder(builder: (context) {
-            final currentUser = FirebaseAuth.instance.currentUser;
-            if (currentUser == null || user['id'] == currentUser.uid) {
-              return const SizedBox.shrink();
-            }
+          trailing: Builder(
+            builder: (context) {
+              final currentUser = FirebaseAuth.instance.currentUser;
+              if (currentUser == null || user['id'] == currentUser.uid) {
+                return const SizedBox.shrink();
+              }
 
-            return FutureBuilder<bool>(
-              future: DatabaseServices.isFollowing(currentUser.uid, user['id']),
-              builder: (context, snap) {
-                final isFollowing = snap.data ?? false;
-                return OutlinedButton(
-                  onPressed: () async {
-                    if (isFollowing) {
-                      await DatabaseServices.unfollowUser(currentUser.uid, user['id']);
-                    } else {
-                      final currentUserData = {
-                        'username': currentUser.displayName ?? '',
-                        'name': currentUser.displayName ?? '',
-                        'profileImage': currentUser.photoURL ?? '',
-                      };
-                      final targetUserData = {
-                        'username': user['username'] ?? '',
-                        'name': user['name'] ?? user['username'] ?? '',
-                        'profileImage': user['profileImage'] ?? '',
-                      };
-                      await DatabaseServices.followUser(currentUser.uid, currentUserData, user['id'], targetUserData);
-                    }
-                    setState(() {});
-                  },
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
+              return FutureBuilder<bool>(
+                future: DatabaseServices.isFollowing(
+                  currentUser.uid,
+                  user['id'],
+                ),
+                builder: (context, snap) {
+                  final isFollowing = snap.data ?? false;
+                  return OutlinedButton(
+                    onPressed: () async {
+                      if (isFollowing) {
+                        await DatabaseServices.unfollowUser(
+                          currentUser.uid,
+                          user['id'],
+                        );
+                      } else {
+                        final currentUserData = {
+                          'username': currentUser.displayName ?? '',
+                          'name': currentUser.displayName ?? '',
+                          'profileImage': currentUser.photoURL ?? '',
+                        };
+                        final targetUserData = {
+                          'username': user['username'] ?? '',
+                          'name': user['name'] ?? user['username'] ?? '',
+                          'profileImage': user['profileImage'] ?? '',
+                        };
+                        await DatabaseServices.followUser(
+                          currentUser.uid,
+                          currentUserData,
+                          user['id'],
+                          targetUserData,
+                        );
+                      }
+                      setState(() {});
+                    },
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      backgroundColor: isFollowing
+                          ? Theme.of(context).primaryColor
+                          : null,
+                      foregroundColor: isFollowing
+                          ? Theme.of(context).primaryIconTheme.color
+                          : null,
                     ),
-                    backgroundColor: isFollowing ? Theme.of(context).primaryColor : null,
-                    foregroundColor: isFollowing ? Theme.of(context).primaryIconTheme.color : null,
-                  ),
-                  child: Text(isFollowing ? 'Following' : 'Follow'),
-                );
-              },
-            );
-          }),
+                    child: Text(isFollowing ? 'Following' : 'Follow'),
+                  );
+                },
+              );
+            },
+          ),
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => ProfileScreen(viewedUserId: user['id'])),
+              MaterialPageRoute(
+                builder: (_) => UserProfileScreen(viewedUserId: user['id']),
+              ),
             );
           },
         );
@@ -414,7 +564,9 @@ class _SearchScreenState extends State<SearchScreen>
           padding: const EdgeInsets.all(32.0),
           child: Text(
             'No tweets found for "$searchQuery"',
-            style: TextStyle(color: Theme.of(context).iconTheme.color?.withOpacity(0.6)),
+            style: TextStyle(
+              color: Theme.of(context).iconTheme.color?.withOpacity(0.6),
+            ),
           ),
         ),
       );
@@ -422,8 +574,11 @@ class _SearchScreenState extends State<SearchScreen>
 
     return ListView.separated(
       itemCount: tweetResults.length,
-      separatorBuilder: (_, __) =>
-          Divider(height: 1, thickness: 1, color: Theme.of(context).dividerColor),
+      separatorBuilder: (_, __) => Divider(
+        height: 1,
+        thickness: 1,
+        color: Theme.of(context).dividerColor,
+      ),
       itemBuilder: (context, index) {
         return TweetCardWidget(tweet: tweetResults[index]);
       },

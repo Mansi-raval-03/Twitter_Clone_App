@@ -1,6 +1,4 @@
-// ---------------- MODEL ----------------
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import 'package:twitter_clone_app/controller/notification_controller.dart';
 
 class AppNotification {
@@ -22,16 +20,33 @@ class AppNotification {
     required this.meta,
   });
 
-  factory AppNotification.fromFirestore(
-    String id,
-    Map<String, dynamic> data,
-  ) {
+  factory AppNotification.fromFirestore(String id, Map<String, dynamic> data) {
     NotificationType type = NotificationType.system;
-    try {
-      type = NotificationType.values.firstWhere(
-        (e) => describeEnum(e) == data['type'],
-      );
-    } catch (_) {}
+    final typeString = (data['type'] ?? '').toString().toLowerCase();
+
+    // Map notification type strings to enum
+    switch (typeString) {
+      case 'like':
+        type = NotificationType.like;
+        break;
+      case 'reply':
+        type = NotificationType.reply;
+        break;
+      case 'retweet':
+        type = NotificationType.retweet;
+        break;
+      case 'follow':
+        type = NotificationType.follow;
+        break;
+      case 'message':
+        type = NotificationType.message;
+        break;
+      case 'mention':
+        type = NotificationType.mention;
+        break;
+      default:
+        type = NotificationType.system;
+    }
 
     return AppNotification(
       id: id,
