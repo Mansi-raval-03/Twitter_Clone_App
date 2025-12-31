@@ -2,31 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:twitter_clone_app/Drawer/app_drawer.dart';
+import 'package:twitter_clone_app/Model/notification_Model.dart';
 import 'package:twitter_clone_app/Pages/user_profile_screen.dart';
 import 'package:twitter_clone_app/utils/image_resolver.dart';
 import 'package:twitter_clone_app/controller/notification_controller.dart';
-
-class NotificationItem {
-  final NotificationType type;
-  final String username;
-  final String handle;
-  final String profileImage;
-  final String? tweetContent;
-  final String timeAgo;
-  final bool isRead;
-
-  NotificationItem({
-    required this.type,
-    required this.username,
-    required this.handle,
-    required this.profileImage,
-    this.tweetContent,
-    required this.timeAgo,
-    this.isRead = false,
-  });
-}
+import 'package:timeago/timeago.dart' as timeago;
+import 'package:twitter_clone_app/Pages/chat_screen.dart';
 
 class NotificationScreen extends StatefulWidget {
+  static const route = '/notification';
+
   const NotificationScreen({super.key});
 
   @override
@@ -34,279 +19,170 @@ class NotificationScreen extends StatefulWidget {
 }
 
 class _NotificationScreenState extends State<NotificationScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  NotificationController? _notificationController;
+  late final TabController _tabController;
+  late final NotificationController _controller;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _notificationController = Get.put(NotificationController());
+    _controller = Get.put(NotificationController());
+
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) _notificationController?.startFirestoreListener(uid);
+    if (uid != null) {
+      _controller.startListener(uid);
+    }
   }
 
   @override
   void dispose() {
-    _notificationController?.stopFirestoreListener();
+    _controller.stopListener();
     _tabController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // accept both String and Map payloads safely
+    final routeArgs = ModalRoute.of(context)?.settings.arguments;
+    if (routeArgs is String) {
+    } else if (routeArgs is Map) {
+    }
+
     return Scaffold(
       drawer: AppDrawer(),
       appBar: AppBar(
-        leading: Builder(
+         leading: Builder(
           builder: (context) => IconButton(
-            icon: Icon(Icons.person_4_outlined, color: Theme.of(context).iconTheme.color),
+            icon: Icon(
+              Icons.person_4_outlined,
+              color: Theme.of(context).iconTheme.color,
+            ),
             onPressed: () {
               Scaffold.of(context).openDrawer();
             },
           ),
         ),
-  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        elevation: 0.4,
-        centerTitle: false,
-        titleSpacing: 0,
-        toolbarHeight: 56,
-        title: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            'Notifications',
-            style: TextStyle(
-              color: Theme.of(context).textTheme.titleLarge?.color,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        title: Text('Notifications', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [Tab(text: 'All'), Tab(text: 'Mentions')],
         ),
       ),
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).scaffoldBackgroundColor,
-                border: Border(
-                  bottom: BorderSide(color: Theme.of(context).dividerColor, width: 1),
-                ),
-              ),
-              child: TabBar(
-                controller: _tabController,
-                labelColor: Theme.of(context).textTheme.titleLarge?.color,
-                unselectedLabelColor: Theme.of(context).textTheme.bodyLarge?.color,
-                indicatorColor: Theme.of(context).colorScheme.primary,
-                indicatorWeight: 3,
-                labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-                tabs: const [
-                  Tab(text: 'All'),
-                  Tab(text: 'Mentions'),
-                ],
-              ),
-            ),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildAllNotifications(),
-                  _buildMentionsNotifications(),
-                ],
-              ),
-            ),
-          ],
-        ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildList(),
+          _buildList(onlyMentions: true),
+        ],
       ),
     );
   }
 
-  Widget _buildAllNotifications() {
-    // Use Obx to react to changes in the controller's notification list in real-time.
-    return GetBuilder<NotificationController>(builder: (c) {
-      final rx = c.notifications;
-      if (rx.isEmpty) {
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.notifications_none, size: 64, color: Theme.of(context).iconTheme.color?.withOpacity(0.4)),
-                const SizedBox(height: 16),
-                Text(
-                  'No notifications yet',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Theme.of(context).textTheme.titleLarge?.color,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'When someone interacts with you, you’ll see it here.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                  ),
-                ),
-              ],
-            ),
-          ),
+  // list of notifications
+  Widget _buildList({bool onlyMentions = false}) {
+    return Obx(() {
+      final list = onlyMentions
+          ? _controller.notifications
+              .where((n) => n.type == NotificationType.mention)
+              .toList()
+          : _controller.notifications;
+
+      if (list.isEmpty) {
+        return _emptyState(
+          title: onlyMentions ? 'Nothing here yet' : 'No notifications',
+          subtitle: onlyMentions
+              ? 'Mentions will appear here'
+              : 'When someone interacts with you, you’ll see it here.',
         );
       }
 
-        final list = rx
-          .map((n) => NotificationItem(
-            type: n.type,
-            username: n.meta?['username']?.toString() ?? '',
-            handle: n.meta?['handle']?.toString() ?? '',
-            profileImage: n.meta?['profileImage']?.toString() ?? '',
-            tweetContent: n.meta?['tweetContent']?.toString() ?? n.meta?['message']?.toString(),
-            timeAgo: n.meta?['timeAgo']?.toString() ?? '',
-            isRead: n.read,
-            ))
-          .toList();
-
       return ListView.separated(
-        padding: EdgeInsets.zero,
         itemCount: list.length,
-        separatorBuilder: (_, __) => Divider(
-          height: 1,
-          thickness: 1,
-          color: Theme.of(context).dividerColor,
-        ),
-        itemBuilder: (context, index) {
-          final n = list[index];
-          return _buildNotificationTile(n);
-        },
+        separatorBuilder: (_, __) => const Divider(height: 1),
+        itemBuilder: (_, i) => _notificationTile(list[i]),
       );
     });
   }
 
-  Widget _buildMentionsNotifications() {
-    // Filter mentions reactively
-    return GetBuilder<NotificationController>(builder: (c) {
-      final rx = c.notifications;
-      final rawMentions = rx.where((n) => n.type == NotificationType.mention).toList();
+  // single notification tile
+  Widget _notificationTile(AppNotification n) {
+    final meta = n.meta;
+    final username = meta['username'] ?? 'User';
+    final handle = meta['handle'] ?? '';
+    final profileImage = meta['profileImage'] ?? '';
+    final content = meta['tweetContent'] ?? meta['message'];
 
-      if (rawMentions.isEmpty) {
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.notifications_none, size: 64, color: Theme.of(context).iconTheme.color?.withOpacity(0.4)),
-                const SizedBox(height: 16),
-                Text(
-                  'Nothing to see here — yet',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Theme.of(context).textTheme.titleLarge?.color,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'When someone mentions you, you’ll find it here.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      }
+    IconData icon;
+    Color color;
+    String action;
 
-        final mentions = rawMentions
-          .map((n) => NotificationItem(
-            type: n.type,
-            username: n.meta?['username']?.toString() ?? '',
-            handle: n.meta?['handle']?.toString() ?? '',
-            profileImage: n.meta?['profileImage']?.toString() ?? '',
-            tweetContent: n.meta?['tweetContent']?.toString(),
-            timeAgo: n.meta?['timeAgo']?.toString() ?? '',
-            isRead: n.read,
-            ))
-          .toList();
-
-      return ListView.separated(
-        padding: EdgeInsets.zero,
-        itemCount: mentions.length,
-        separatorBuilder: (_, __) => Divider(
-          height: 1,
-          thickness: 1,
-          color: Theme.of(context).dividerColor,
-        ),
-        itemBuilder: (context, index) {
-          return _buildNotificationTile(mentions[index]);
-        },
-      );
-    });
-  }
-
-  Widget _buildNotificationTile(NotificationItem notification) {
-    IconData iconData;
-    Color iconColor;
-    String actionText;
-
-    switch (notification.type) {
+    switch (n.type) {
       case NotificationType.like:
-        iconData = Icons.favorite;
-        iconColor = Colors.red;
-        actionText = 'liked your Tweet';
+        icon = Icons.favorite;
+        color = Colors.red;
+        action = 'liked your Tweet';
         break;
       case NotificationType.reply:
-        iconData = Icons.chat_bubble_outline;
-        iconColor = Theme.of(context).colorScheme.primary;
-        actionText = 'replied to your Tweet';
-        break;
-      case NotificationType.message:
-        iconData = Icons.email_outlined;
-        iconColor = Theme.of(context).colorScheme.primary;
-        actionText = 'sent you a message';
+        icon = Icons.chat_bubble_outline;
+        color = Theme.of(context).colorScheme.primary;
+        action = 'replied to your Tweet';
         break;
       case NotificationType.retweet:
-        iconData = Icons.repeat;
-        iconColor = Colors.green;
-        actionText = 'retweeted your Tweet';
+        icon = Icons.repeat;
+        color = Colors.green;
+        action = 'retweeted your Tweet';
         break;
       case NotificationType.follow:
-        iconData = Icons.person_add;
-        iconColor = Theme.of(context).colorScheme.primary;
-        actionText = 'followed you';
+        icon = Icons.person_add;
+        color = Theme.of(context).colorScheme.primary;
+        action = 'followed you';
+        break;
+      case NotificationType.message:
+        icon = Icons.email_outlined;
+        color = Theme.of(context).colorScheme.primary;
+        action = 'sent you a message';
         break;
       case NotificationType.mention:
-        iconData = Icons.alternate_email;
-        iconColor = Theme.of(context).colorScheme.primary;
-        actionText = 'mentioned you';
+        icon = Icons.alternate_email;
+        color = Theme.of(context).colorScheme.primary;
+        action = 'mentioned you';
         break;
       case NotificationType.system:
-        throw UnimplementedError();
-    }
+        icon = Icons.info_outline;
+        color = Theme.of(context).colorScheme.primary;
+        action = 'system notification';
+        break;
+      }
 
     return InkWell(
-      onTap: () {
-        Get.to(UserProfileScreen(
-          viewedUserId: notification.handle,
-        ));
+      onTap: () async {
+        await _controller.consumeNotification(n);
+        if (n.type == NotificationType.message) {
+          final fromId = meta['fromUserId'];
+          if (fromId != null) {
+            Get.to(() => ChatScreen(
+                  userId: fromId,
+                  userName: username,
+                  userHandle: handle,
+                  profileImage: profileImage,
+                ));
+            return;
+          }
+        }
+
+        Get.to(() => UserProfileScreen(viewedUserId: handle));
       },
       child: Container(
-        color: notification.isRead ? Theme.of(context).scaffoldBackgroundColor   : Theme.of(context).colorScheme.primary.withOpacity(0.1),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        color: n.read
+            ? Theme.of(context).scaffoldBackgroundColor
+            : Theme.of(context).colorScheme.primary.withOpacity(0.08),
+        padding: const EdgeInsets.all(16),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              child: Icon(iconData, color: iconColor, size: 28),
-            ),
+            Icon(icon, color: color, size: 28),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -316,67 +192,71 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                     children: [
                       CircleAvatar(
                         radius: 16,
-                        backgroundImage: resolveImageProvider(notification.profileImage),
-                        child: notification.profileImage.isEmpty
-                            ? const Icon(Icons.person_outline, size: 18)
-                            : null,
+                        backgroundImage:
+                            resolveImageProvider(profileImage),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: RichText(
                           text: TextSpan(
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyLarge,
                             children: [
                               TextSpan(
-                                text: notification.username,
-                                style: TextStyle(
-                                  color: Theme.of(context).textTheme.bodyLarge?.color,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 15,
-                                ),
+                                text: username,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
                               ),
-                              TextSpan(
-                                text: ' $actionText',
-                                style: TextStyle(
-                                  color: Theme.of(context).textTheme.bodyLarge?.color,
-                                  fontSize: 15,
-                                ),
-                              ),
+                              TextSpan(text: ' $action'),
                             ],
                           ),
                         ),
                       ),
                     ],
                   ),
-                  if (notification.tweetContent != null) ...[
+                  if (content != null) ...[
                     const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Theme.of(context).dividerColor),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        notification.tweetContent!,
-                        style: TextStyle(
-                          color: Theme.of(context).textTheme.bodyLarge?.color,
-                          fontSize: 14,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                    Text(
+                      content,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Text(
-                    notification.timeAgo,
-                    style: TextStyle(
-                      color: Theme.of(context).textTheme.bodyLarge?.color,
-                      fontSize: 13,
-                    ),
+                    timeago.format(n.time, locale: 'en_short'),
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall,
                   ),
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // empty state widget
+  Widget _emptyState({
+    required String title,
+    required String subtitle,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.notifications_none, size: 64),
+            const SizedBox(height: 16),
+            Text(title,
+                style: const TextStyle(
+                    fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(subtitle, textAlign: TextAlign.center),
           ],
         ),
       ),

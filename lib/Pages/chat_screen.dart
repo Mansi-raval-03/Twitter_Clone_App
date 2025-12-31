@@ -2,11 +2,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
 import 'package:twitter_clone_app/Pages/user_profile_screen.dart';
 import 'package:twitter_clone_app/utils/image_resolver.dart';
+import 'package:twitter_clone_app/controller/chat_screen_controller.dart';
+import 'package:twitter_clone_app/Model/chat_Model.dart';
 
-class ChatScreen extends StatefulWidget {
+class ChatScreen extends StatelessWidget {
+  // User details for the chat
   final String userId;
   final String userName;
   final String userHandle;
@@ -21,132 +23,44 @@ class ChatScreen extends StatefulWidget {
   });
 
   @override
-  State<ChatScreen> createState() => _ChatScreenState();
-}
-
-class _ChatScreenState extends State<ChatScreen> {
-  final TextEditingController _messageController = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
-
-  @override
-  void dispose() {
-    _messageController.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  String _getChatId() {
-    final currentUserId = FirebaseAuth.instance.currentUser!.uid;
-    final ids = [currentUserId, widget.userId]..sort();
-    return '${ids[0]}_${ids[1]}';
-  }
-
-  Future<void> _sendMessage() async {
-    if (_messageController.text.trim().isEmpty) return;
-
-    final currentUser = FirebaseAuth.instance.currentUser!;
-    final message = _messageController.text.trim();
-    _messageController.clear();
-
-    try {
-      await FirebaseFirestore.instance
-          .collection('chats')
-          .doc(_getChatId())
-          .collection('messages')
-          .add({
-        'senderId': currentUser.uid,
-        'receiverId': widget.userId,
-        'message': message,
-        'timestamp': FieldValue.serverTimestamp(),
-        'isRead': false,
-      });
-
-      // Update chat metadata
-      await FirebaseFirestore.instance.collection('chats').doc(_getChatId()).set({
-        'participants': [currentUser.uid, widget.userId],
-        'lastMessage': message,
-        'lastMessageTime': FieldValue.serverTimestamp(),
-        'lastSenderId': currentUser.uid,
-      }, SetOptions(merge: true));
-
-      // Write a notification document for the receiver so their client
-      // (and NotificationController listener) can pick it up.
-      try {
-        final now = DateTime.now();
-        await FirebaseFirestore.instance.collection('notifications').add({
-          'to': widget.userId,
-          'from': currentUser.uid,
-          'title': 'New message',
-          'body': message,
-          'time': FieldValue.serverTimestamp(),
-          'type': 'message',
-          'read': false,
-          'meta': {
-            'username': currentUser.displayName ?? '',
-            'handle': currentUser.email != null ? currentUser.email!.split('@')[0] : '',
-            'profileImage': currentUser.photoURL ?? '',
-            'message': message,
-            'timeAgo': DateFormat('h:mm a').format(now),
-          },
-        });
-      } catch (e) {
-        debugPrint('Failed to write notification: $e');
-      }
-
-      _scrollToBottom();
-    } catch (e) {
-      debugPrint('Error sending message: $e');
-    }
-  }
-
-  void _scrollToBottom() {
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
-  }
-
-  String _formatTime(DateTime dateTime) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final messageDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
-
-    if (messageDate == today) {
-      return DateFormat('h:mm a').format(dateTime);
-    } else {
-      return DateFormat('MMM d, h:mm a').format(dateTime);
-    }
-  }
-
-  void _openProfile() {
-    Get.to(() => UserProfileScreen(
-      viewedUserId: widget.userId,
-        ));
-  }
-
-  @override
   Widget build(BuildContext context) {
+    // Initialize the controller
+    final controller = Get.put(
+      ChatScreenController(
+        otherUserId: userId,
+        otherUserName: userName,
+      ),
+      tag: userId,
+    );
+
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final onSurface = colors.onSurface;
+    final surface = colors.surface;
+    final surfaceVariant = colors.surfaceContainerHighest;
+    final primary = colors.primary;
+    final onPrimary = colors.onPrimary;
+
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-        elevation: Theme.of(context).appBarTheme.elevation ?? 0.4,
+        backgroundColor: surface,
+        elevation: theme.appBarTheme.elevation ?? 0.4,
+        foregroundColor: onSurface,
+        iconTheme: IconThemeData(color: onSurface),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Theme.of(context).appBarTheme.foregroundColor),
-          onPressed: () =>  Get.back(),
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Get.back(),
         ),
         title: InkWell(
-          onTap: _openProfile,
+          onTap: () => _openProfile(userId),
           child: Row(
             children: [
               CircleAvatar(
-                    radius: 16,
-                    backgroundImage: resolveImageProvider(widget.profileImage),
-                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                child: widget.profileImage.isEmpty
-                    ? const Icon(Icons.person, size: 18)
+                radius: 16,
+                backgroundImage: resolveImageProvider(profileImage),
+                backgroundColor: surfaceVariant,
+                child: profileImage.isEmpty
+                    ? Icon(Icons.person, size: 18, color: onSurface.withOpacity(0.7))
                     : null,
               ),
               const SizedBox(width: 12),
@@ -155,17 +69,17 @@ class _ChatScreenState extends State<ChatScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.userName,
+                      userName,
                       style: TextStyle(
-                        color: Theme.of(context).appBarTheme.foregroundColor,
+                        color: onSurface,
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     Text(
-                      '@${widget.userHandle}',
+                      '@$userHandle',
                       style: TextStyle(
-                        color: Theme.of(context).appBarTheme.foregroundColor?.withOpacity(0.7),
+                        color: onSurface.withOpacity(0.7),
                         fontSize: 13,
                       ),
                     ),
@@ -175,91 +89,62 @@ class _ChatScreenState extends State<ChatScreen> {
             ],
           ),
         ),
-      
       ),
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Column(
         children: [
           // Messages List
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('chats')
-                  .doc(_getChatId())
-                  .collection('messages')
-                  .orderBy('timestamp', descending: false)
-                  .snapshots(),
+              stream: controller.getMessagesStream(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        CircleAvatar(
-                          radius: 40,
-                          backgroundImage: resolveImageProvider(widget.profileImage),
-                          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                          child: widget.profileImage.isEmpty
-                              ? const Icon(Icons.person, size: 40)
-                              : null,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          widget.userName,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          '@${widget.userHandle}',
-                          style: TextStyle(
-                            color: Theme.of(context).appBarTheme.foregroundColor?.withOpacity(0.7),
-                            fontSize: 15,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          'Start a conversation',
-                          style: TextStyle(
-                            color: Theme.of(context).appBarTheme.foregroundColor?.withOpacity(0.7),
-                            fontSize: 15,
-                          ),
-                        ),
-                      ],
-                    ),
+                  return _buildEmptyState(
+                    theme,
+                    surfaceVariant,
+                    profileImage,
+                    userName,
+                    userHandle,
                   );
                 }
 
                 final messages = snapshot.data!.docs;
+                controller.scheduleStatusUpdate(snapshot.data!);
+                
                 WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (!mounted) return;
                   try {
-                    _scrollToBottom();
+                    controller.scrollToBottom();
                   } catch (_) {}
                 });
 
                 return ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.all(16),
+                  controller: controller.scrollController,
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
-                    final message = messages[index].data() as Map<String, dynamic>;
-                    final isMe = message['senderId'] ==
-                        FirebaseAuth.instance.currentUser!.uid;
-                    final timestamp = message['timestamp'] as Timestamp?;
-                    final time = timestamp != null
-                        ? _formatTime(timestamp.toDate())
+                    final messageData = messages[index].data() as Map<String, dynamic>;
+                    final message = ChatMessage.fromFirestore(
+                      messages[index].id,
+                      messageData,
+                    );
+                    final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+                    final isMe = message.senderId == currentUserId;
+                    final time = message.timestamp != null
+                        ? controller.formatTime(message.timestamp!)
                         : '';
+                    final status = message.getStatus(currentUserId);
 
                     return _buildMessageBubble(
-                      message['message'],
+                      context,
+                      message.message,
                       isMe,
                       time,
+                      status,
+                      profileImage,
                     );
                   },
                 );
@@ -268,48 +153,66 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
 
           // Message Input
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).scaffoldBackgroundColor,
-              border: Border(
-                top: BorderSide(color: Theme.of(context).dividerColor),
-              ),
+          _buildMessageInput(
+            context,
+            controller,
+            theme,
+            surface,
+            surfaceVariant,
+            primary,
+            onPrimary,
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openProfile(String userId) {
+    Get.to(() => UserProfileScreen(
+      viewedUserId: userId,
+    ));
+  }
+
+  Widget _buildEmptyState(
+    ThemeData theme,
+    Color surfaceVariant,
+    String profileImage,
+    String userName,
+    String userHandle,
+  ) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(
+            radius: 40,
+            backgroundImage: resolveImageProvider(profileImage),
+            backgroundColor: surfaceVariant,
+            child: profileImage.isEmpty
+                ? const Icon(Icons.person, size: 40)
+                : null,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            userName,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
-                    decoration: InputDecoration(
-                      hintText: 'Start a new message',
-                      hintStyle: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color?.withOpacity(0.6)),
-                      filled: true,
-                      fillColor: Theme.of(context).inputDecorationTheme.fillColor ?? Theme.of(context).cardColor,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                    ),
-                    maxLines: null,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => _sendMessage(),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                CircleAvatar(
-                  backgroundColor: Theme.of(context).primaryColor,
-                  child: IconButton(
-                    icon: Icon(Icons.send, color: Theme.of(context).primaryIconTheme.color, size: 20),
-                    onPressed: _sendMessage,
-                  ),
-                ),
-              ],
+          ),
+          Text(
+            '@$userHandle',
+            style: TextStyle(
+              color: theme.appBarTheme.foregroundColor?.withOpacity(0.7),
+              fontSize: 15,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Start a conversation',
+            style: TextStyle(
+              color: theme.appBarTheme.foregroundColor?.withOpacity(0.7),
+              fontSize: 15,
             ),
           ),
         ],
@@ -317,9 +220,29 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildMessageBubble(String message, bool isMe, String time) {
+  Widget _buildMessageBubble(
+    BuildContext context,
+    String message,
+    bool isMe,
+    String time,
+    MessageStatus status,
+    String profileImage,
+  ) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final bubbleColor = isMe
+        ? (theme.brightness == Brightness.light 
+            ? colors.primaryContainer 
+            : colors.primary.withOpacity(0.15))
+        : colors.surfaceContainerHighest;
+    final textColor = isMe
+        ? (theme.brightness == Brightness.light 
+            ? colors.onPrimaryContainer 
+            : colors.onSurface)
+        : theme.textTheme.bodyLarge?.color;
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -327,9 +250,9 @@ class _ChatScreenState extends State<ChatScreen> {
           if (!isMe) ...[
             CircleAvatar(
               radius: 14,
-              backgroundImage: resolveImageProvider(widget.profileImage),
-              backgroundColor: Theme.of(context).dividerColor,
-              child: widget.profileImage.isEmpty
+              backgroundImage: resolveImageProvider(profileImage),
+              backgroundColor: theme.dividerColor,
+              child: profileImage.isEmpty
                   ? const Icon(Icons.person, size: 14)
                   : null,
             ),
@@ -346,35 +269,126 @@ class _ChatScreenState extends State<ChatScreen> {
                     vertical: 10,
                   ),
                   decoration: BoxDecoration(
-                    color: isMe 
-                        ? Theme.of(context).primaryColor 
-                        : (Theme.of(context).brightness == Brightness.dark 
-                            ? Colors.grey.shade800 
-                            : Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(20),
+                    color: bubbleColor,
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(18),
+                      topRight: const Radius.circular(18),
+                      bottomLeft: Radius.circular(isMe ? 18 : 6),
+                      bottomRight: Radius.circular(isMe ? 6 : 18),
+                    ),
                   ),
                   child: Text(
                     message,
                     style: TextStyle(
-                      color: isMe 
-                          ? Colors.white 
-                          : Theme.of(context).textTheme.bodyLarge?.color,
+                      color: textColor,
                       fontSize: 15,
                     ),
                   ),
                 ),
                 if (time.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(top: 4, left: 12, right: 12),
-                    child: Text(
-                      time,
-                      style: TextStyle(
-                        color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6),
-                        fontSize: 12,
-                      ),
+                    padding: const EdgeInsets.only(top: 6, left: 12, right: 12),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          time,
+                          style: TextStyle(
+                            color: theme.textTheme.bodySmall?.color?.withOpacity(0.65),
+                            fontSize: 12,
+                          ),
+                        ),
+                        if (isMe) ...[
+                          const SizedBox(width: 6),
+                          _messageStatusIcon(context, status),
+                        ],
+                      ],
                     ),
                   ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _messageStatusIcon(BuildContext context, MessageStatus status) {
+    IconData icon;
+    Color? color;
+    final theme = Theme.of(context);
+    
+    switch (status) {
+      case MessageStatus.sent:
+        icon = Icons.check;
+        color = theme.iconTheme.color?.withOpacity(0.6);
+        break;
+      case MessageStatus.delivered:
+        icon = Icons.done_all;
+        color = theme.iconTheme.color?.withOpacity(0.6);
+        break;
+      case MessageStatus.read:
+        icon = Icons.done_all;
+        color = theme.colorScheme.primary;
+        break;
+    }
+    return Icon(icon, size: 16, color: color);
+  }
+
+  Widget _buildMessageInput(
+    BuildContext context,
+    ChatScreenController controller,
+    ThemeData theme,
+    Color surface,
+    Color surfaceVariant,
+    Color primary,
+    Color onPrimary,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: surface,
+        border: Border(
+          top: BorderSide(color: theme.dividerColor),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: controller.messageController,
+              style: TextStyle(color: theme.textTheme.bodyLarge?.color),
+              decoration: InputDecoration(
+                hintText: 'Start a new message',
+                hintStyle: TextStyle(
+                  color: theme.textTheme.bodyLarge?.color?.withOpacity(0.6),
+                ),
+                filled: true,
+                fillColor: theme.inputDecorationTheme.fillColor ?? surfaceVariant,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+              ),
+              maxLines: null,
+              textInputAction: TextInputAction.send,
+              onSubmitted: (_) => controller.sendMessage(),
+            ),
+          ),
+          const SizedBox(width: 12),
+          CircleAvatar(
+            backgroundColor: primary,
+            child: IconButton(
+              icon: Icon(
+                Icons.send,
+                color: onPrimary,
+                size: 20,
+              ),
+              onPressed: () => controller.sendMessage(),
             ),
           ),
         ],

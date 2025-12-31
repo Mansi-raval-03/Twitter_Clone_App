@@ -31,14 +31,14 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter_native_splash:
- 
-  firebase_core: 
-  firebase_auth: ^6.1.2
-  cloud_firestore: ^6.0.0
-  firebase_storage: ^13.0.0
-  flutter_riverpod: ^3.0.0
   
+  
+  firebase_core: ^4.3.0 
+  firebase_auth: ^6.1.3
+  cloud_firestore: ^6.1.1
+  firebase_storage: ^13.0.5
+  flutter_riverpod: ^3.0.0
+  flutter_svg:
   uuid: ^4.0.0
   image_picker: ^1.0.0
   timeago: ^3.0.2
@@ -52,9 +52,9 @@ dependencies:
   equatable:
   shimmer: 
   font_awesome_flutter:
-  
-  firebase_messaging: ^16.1.0
-  flutter_local_notifications: ^19.5.0
+  flutter_launcher_icons: ^0.13.1
+  firebase_messaging: 
+  flutter_local_notifications: 
   carousel_slider:
   cached_network_image:
   google_sign_in: ^6.3.0
@@ -65,12 +65,13 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_launcher_icons:
  
 flutter_icons:
   android: true
   ios: true
-  image_path: "assets/logo.png"
+  image_path: "assets/LOGO.jpeg"
+
+
 
 
 
@@ -95,98 +96,80 @@ flutter:
   # To add assets to your application, add an assets section, like this:
 assets:
   - assets/
-  - assets/LightThemeLogo.svg
-  - assets/DarkThemeLogo.svg
-  - assets/google.png
-
-flutter_native_splash:
-  color: "#FFFFFF"
-  color_dark: "#121212"
-  image: assets/LightThemeLogo.png
-  image_dark: assets/DarkThemeLogo.png
-  fullscreen: true
-
-  android_12:
-    image: assets/LightThemeLogo.png
-    image_dark: assets/DarkThemeLogo.png
-    color: "#FFFFFF"
-    color_dark: "#121212"
+  - assets/images/
+  - assets/fonts/
 
  
 
   
-  fonts:
-    - family: BlackFonts
-      fonts:
-        - asset: assets/fonts/Montserrat-Black.ttf
-    - family: BlackItalic
-      fonts:
-        - asset: assets/fonts/Montserrat-BlackItalic.ttf
+fonts:
+   - family: BlackFonts
+     fonts:
+       - asset: assets/fonts/Montserrat-Black.ttf
+   - family: BlackItalic
+     fonts:
+       - asset: assets/fonts/Montserrat-BlackItalic.ttf
  
 
-    - family: BoldFonts
-      fonts:
-        - asset: assets/fonts/Montserrat-Bold.ttf
+   - family: BoldFonts
+     fonts:
+       - asset: assets/fonts/Montserrat-Bold.ttf
 
-    - family: BoldItalic
-      fonts:
-        - asset: assets/fonts/Montserrat-BoldItalic.ttf
+   - family: BoldItalic
+     fonts:
+       - asset: assets/fonts/Montserrat-BoldItalic.ttf
+   - family: ExtraBold
+     fonts:
+       - asset: assets/fonts/Montserrat-ExtraBold.ttf
 
-    - family: ExtraBold
-      fonts:
-        - asset: assets/fonts/Montserrat-ExtraBold.ttf
+   - family: ExtraBoldItalic
+     fonts:
+       - asset: assets/fonts/Montserrat-ExtraBoldItalic.ttf
+   - family: ExtraLight BETA
+     fonts:
+       - asset: assets/fonts/Montserrat-ExtraLight.ttf
 
-    - family: ExtraBoldItalic
-      fonts:
-        - asset: assets/fonts/Montserrat-ExtraBoldItalic.ttf
+   - family: ExtraLightItalic BETA
+     fonts:
+       - asset: assets/fonts/Montserrat-ExtraLightItalic.ttf
 
-    - family: ExtraLight BETA
-      fonts:
-        - asset: assets/fonts/Montserrat-ExtraLight.ttf
+   - family: ItalicFont
+     fonts:
+       - asset: assets/fonts/Montserrat-Italic.ttf
 
-    - family: ExtraLightItalic BETA
-      fonts:
-        - asset: assets/fonts/Montserrat-ExtraLightItalic.ttf
+   - family: Light BETA
+     fonts:
+       - asset: assets/fonts/Montserrat-Light.ttf
 
-    - family: ItalicFont
-      fonts:
-        - asset: assets/fonts/Montserrat-Italic.ttf
+   - family: LightItalic BETA
+     fonts:
+       - asset: assets/fonts/Montserrat-LightItalic.ttf
 
-    - family: Light BETA
-      fonts:
-        - asset: assets/fonts/Montserrat-Light.ttf
+   - family: MediumFont
+     fonts:
+       - asset: assets/fonts/Montserrat-Medium.ttf
 
-    - family: LightItalic BETA
-      fonts:
-        - asset: assets/fonts/Montserrat-LightItalic.ttf
+   - family: MediumItalic
+     fonts:
+       - asset: assets/fonts/Montserrat-MediumItalic.ttf
 
-    - family: MediumFont
-      fonts:
-        - asset: assets/fonts/Montserrat-Medium.ttf
+   - family: RegularFont
+     fonts:
+      - asset: assets/fonts/Montserrat-Regular.ttf
+   - family: SemiBold
+     fonts:
+       - asset: assets/fonts/Montserrat-SemiBold.ttf
 
-    - family: MediumItalic
-      fonts:
-        - asset: assets/fonts/Montserrat-MediumItalic.ttf
+   - family: SemiBoldItalic
+     fonts:
+       - asset: assets/fonts/Montserrat-SemiBoldItalic.ttf
+   - family: Thin BETA
+     fonts:
+       - asset: assets/fonts/Montserrat-Thin.ttf
 
-    - family: RegularFont
-      fonts:
-        - asset: assets/fonts/Montserrat-Regular.ttf
-
-    - family: SemiBold
-      fonts:
-        - asset: assets/fonts/Montserrat-SemiBold.ttf
-
-    - family: SemiBoldItalic
-      fonts:
-        - asset: assets/fonts/Montserrat-SemiBoldItalic.ttf
-
-    - family: Thin BETA
-      fonts:
-        - asset: assets/fonts/Montserrat-Thin.ttf
-
-    - family: ThinItalic BETA
-      fonts:
-        - asset: assets/fonts/Montserrat-ThinItalic.ttf
+   - family: ThinItalic BETA
+     fonts:
+       - asset: assets/fonts/Montserrat-ThinItalic.ttf
 
 
   

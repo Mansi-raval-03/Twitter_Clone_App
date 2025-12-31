@@ -37,13 +37,13 @@ class _HomeScreenState extends State<HomeScreen> {
   final Map<String, Map<String, dynamic>> _usersCache = {};
 
   Future<Map<String, dynamic>?> _fetchUserData(String uid) async {
+    if (uid.toString().trim().isEmpty) return null;
     if (_usersCache.containsKey(uid)) {
       return _usersCache[uid];
     }
-    
     try {
       final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      if (doc.exists) {
+      if (doc.exists && doc.data() != null) {
         _usersCache[uid] = doc.data()!;
         return doc.data();
       }
@@ -242,7 +242,7 @@ return Scaffold(
           showModalBottomSheet(
             context: context,
             isScrollControlled: true,
-            backgroundColor: Theme.of(context).floatingActionButtonTheme.backgroundColor,
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
             ),

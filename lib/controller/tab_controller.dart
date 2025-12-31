@@ -7,7 +7,7 @@ class ProfileTabController extends GetxController with GetSingleTickerProviderSt
   @override
   void onInit() {
     super.onInit();
-    tabController = TabController(length: 4, vsync: this);
+    tabController = TabController(length: 1, vsync: this, initialIndex: 0,);
   }
  // Tweets
   @override

@@ -75,11 +75,15 @@ class _ProfileScreenState extends State<ProfileScreen>
                         BoxShadow(color: Theme.of(context).shadowColor, blurRadius: 6, offset: const Offset(0, 3)),
                       ],
                     ),
-                      child: _buildAvatarWidget(profileImage),
+                      child: buildAvatarWidget(profileImage),
                   ),
                 ),
               ),
-              const Spacer(),
+              const Spacer(
+                flex: 1,
+
+              ),
+              
               if (FirebaseAuth.instance.currentUser?.uid == uid)
                 OutlinedButton(
                   onPressed: () async {
@@ -127,6 +131,12 @@ class _ProfileScreenState extends State<ProfileScreen>
                   child: Text('$following following'),
                 ),
               ]),
+              const SizedBox(height: 12),
+              Divider(
+                height: 2,
+                thickness: 2,
+                color: Theme.of(context).dividerColor,
+              ),
             ],
           ),
         ),
@@ -159,7 +169,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     });
   }
 
-  Widget _buildAvatarWidget(String profilePath) {
+  Widget buildAvatarWidget(String profilePath) {
     final trimmed = profilePath.trim();
     if (trimmed.isEmpty) return const CircleAvatar(radius: 48, child: Icon(Icons.person_outline, size: 40));
 
@@ -186,21 +196,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  TabBar _buildTabBar(TabController controller) {
-    final labels = ['Tweets', 'Replies', 'Retweets', 'Likes'];
-    final tabs = List<Widget>.generate(controller.length, (i) {
-      final text = i < labels.length ? labels[i] : '';
-      return Tab(text: text);
-    });
-
-    return TabBar(
-      controller: controller,
-      labelColor: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
-      unselectedLabelColor: Colors.grey,
-      indicatorColor: Theme.of(context).textTheme.bodyLarge?.color ??  Colors.black,
-      tabs: tabs,
-    );
-  }
+  
 
   @override
   Widget build(BuildContext context) {
@@ -233,7 +229,6 @@ class _ProfileScreenState extends State<ProfileScreen>
         
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text('Profile',style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),),
         titleTextStyle: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontSize: 20),
         iconTheme: IconThemeData(color: Theme.of(context).textTheme.bodyLarge?.color),
         leading: Builder(
@@ -298,8 +293,9 @@ class _ProfileScreenState extends State<ProfileScreen>
           return NestedScrollView(
             headerSliverBuilder: (_, __) => [
               SliverToBoxAdapter(child: _buildHeader(data, uid)),
-              SliverPersistentHeader(pinned: true, delegate: _TabBarDelegate(_buildTabBar(tabCtrl))),
+               
             ],
+            
             body: TabBarView(controller: tabCtrl, children: List<Widget>.generate(tabCtrl.length, (index) {
               switch (index) {
                 case 0:
@@ -371,85 +367,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                       );
                     },
                   );
-                case 2:
-                  // Retweets tab
-                  return StreamBuilder<List<TweetModel>>(
-                    stream: _profileCtrl.userRetweetedTweetsStream(uid).asBroadcastStream(),
-                    builder: (c, s) {
-                      if (s.hasError) return Center(child: Text('Error loading media: ${s.error}'));
-                      if (s.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-                      final raw = s.data ?? [];
-                      (data?['profileImage'] ?? data?['profilePicture'] ?? '').toString();
-                      // For retweets we should show the original author's profile image
-                      // (do NOT replace with the profile being viewed). Keep the
-                      // tweet's `profileImage` so retweets/likes reflect original author.
-                      final retweets = raw.map((t) {
-                        return TweetModel(
-                          id: t.id,
-                          uid: t.uid,
-                          username: t.username,
-                          handle: t.handle,
-                          profileImage: t.profileImage,
-                          content: t.content,
-                          imageUrl: t.imageUrl,
-                          likes: t.likes,
-                          comments: t.comments,
-                          createdAt: t.createdAt,
-                          isLiked: t.isLiked,
-                        );
-                      }).toList();
-
-                      if (retweets.isEmpty) return const Center(child: Text('No retweets'));
-                      return ListView.separated(
-                        padding: const EdgeInsets.only(bottom: 80),
-                        itemCount: retweets.length,
-                        separatorBuilder: (_, __) => Divider(color: Theme.of(context).dividerColor),
-                        itemBuilder: (_, i) => TweetCardWidget(tweet: retweets[i]),
-                      );
-                    },
-                  );
-               
-                case 3:
-                  // Likes tab
-                  return StreamBuilder<List<TweetModel>>(
-                    stream: _profileCtrl.userLikedTweetsStream(uid).asBroadcastStream(),
-                    builder: (c, s) {
-                      if (s.hasError) return Center(child: Text('Error loading likes: ${s.error}'));
-                      if (s.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-                      final raw = s.data ?? [];
-                      (data?['profileImage'] ?? data?['profilePicture'] ?? '').toString();
-                      // For liked tweets, show the original author's profile image
-                      // rather than the profile owner's image.
-                      final tweets = raw.map((t) {
-                        return TweetModel(
-                          id: t.id,
-                          uid: t.uid,
-                          username: t.username,
-                          handle: t.handle,
-                          profileImage: t.profileImage,
-                          content: t.content,
-                          imageUrl: t.imageUrl,
-                          likes: t.likes,
-                          comments: t.comments,
-                          createdAt: t.createdAt,
-                          isLiked: t.isLiked,
-                        );
-                      }).toList();
-
-                      if (tweets.isEmpty) return const Center(child: Text('No liked tweets'));
-                      return ListView.separated(
-                        padding: const EdgeInsets.only(bottom: 80),
-                        itemCount: tweets.length,
-                        separatorBuilder: (_, __) => Divider(color: Theme.of(context).dividerColor),
-                        itemBuilder: (_, i) => TweetCardWidget(tweet: tweets[i]),
-                      );
-                    },
-                  );
                 default:
-                  return const Center(child: SizedBox.shrink());
-              }
-            })),
-          );
+                  return Center(child: Text('Tab $index'));
+        }}),));
         },
       ),
     );
@@ -458,21 +378,3 @@ class _ProfileScreenState extends State<ProfileScreen>
   // TabController is provided by `ProfileTabController` (app-level). No local controller lifecycle here.
 }
 
-class _TabBarDelegate extends SliverPersistentHeaderDelegate {
-  final TabBar tabBar;
-  _TabBarDelegate(this.tabBar);
-
-  @override
-  Widget build(context, double shrinkOffset, bool overlapsContent) {
-    return Container(color: Theme.of(context).scaffoldBackgroundColor, child: tabBar);
-  }
-
-  @override
-  double get maxExtent => tabBar.preferredSize.height;
-
-  @override
-  double get minExtent => tabBar.preferredSize.height;
-
-  @override
-  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) => false;
-}

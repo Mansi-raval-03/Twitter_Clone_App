@@ -17,7 +17,7 @@ class AppThemes {
     primaryColor: const Color(0xFF1DA1F2),
 
     appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xFF1DA1F2),
+      backgroundColor: Colors.black,
       foregroundColor: Colors.white,
       systemOverlayStyle: SystemUiOverlayStyle.dark,
       elevation: 0.5,
@@ -39,17 +39,8 @@ class AppThemes {
   // DARK THEME
   static ThemeData darkMode = ThemeData(
     brightness: Brightness.dark,
-
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: const Color(0xFF1DA1F2),
-      brightness: Brightness.dark,
-      background: Colors.black,
-      surface: Colors.black,
-    ),
-
     scaffoldBackgroundColor: Colors.black,
     canvasColor: Colors.black,
-    dialogBackgroundColor: Colors.black,
     cardColor: Colors.black,
 
     primaryColor: Colors.black,
@@ -73,6 +64,11 @@ class AppThemes {
     textTheme: const TextTheme(
       bodyLarge: TextStyle(color: Colors.white70),
       bodyMedium: TextStyle(color: Colors.white70),
-    ),
+    ), dialogTheme: DialogThemeData(backgroundColor: Colors.black), colorScheme: ColorScheme.fromSeed(
+      seedColor: const Color(0xFF1DA1F2),
+      brightness: Brightness.dark,
+      background: Colors.black,
+      surface: Colors.black,
+    ).copyWith(surface: Colors.black),
   );
 }

@@ -1,3 +1,4 @@
+
 abstract class AppRoute {
   static const splash = '/splash';
   static const login = '/login';
@@ -8,5 +9,6 @@ abstract class AppRoute {
   static const profileScreen = '/profileScreen';
   static const searchScreen = '/searchScreen';
   static const notificationsScreen = '/notificationsScreen';
-
+  static const userProfileScreen = '/userProfileScreen';
+  static const splashScreen = '/splashScreen';
 }

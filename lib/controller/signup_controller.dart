@@ -68,10 +68,10 @@ class SignupController extends GetxController {
       if (!Get.isRegistered<NotificationController>()) {
         final notif = NotificationController();
         Get.put<NotificationController>(notif);
-        notif.startFirestoreListener(user.uid);
+        notif.startListener(user.uid);
       } else {
         try {
-          Get.find<NotificationController>().startFirestoreListener(user.uid);
+          Get.find<NotificationController>().startListener(user.uid);
         } catch (_) {}
       }
 

@@ -12,8 +12,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class TweetCardWidget extends StatefulWidget {
   final TweetModel tweet;
+  final bool isBookmarkScreen;
 
-  const TweetCardWidget({super.key, required this.tweet});
+  const TweetCardWidget({
+    super.key,
+    required this.tweet,
+    this.isBookmarkScreen = false,
+  });
 
   @override
   State<TweetCardWidget> createState() => _TweetCardWidgetState();
@@ -45,6 +50,14 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
       return '${(number / 1000000).toStringAsFixed(1)}M';
     } else {
       return number.toString();
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    try {
+      return DateFormat('h:mm a • MMM d').format(date);
+    } catch (_) {
+      return '';
     }
   }
 
@@ -84,7 +97,7 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
         final currentUid = FirebaseAuth.instance.currentUser?.uid;
         final firebaseLikes = _safeListConversion(data['likes']);
         final firebaseRetweets = _safeListConversion(data['retweets']);
-        
+
         if (!_isProcessingLike) {
           _localLikesCount = firebaseLikes.length;
           _localIsLiked = firebaseLikes.contains(currentUid);
@@ -125,7 +138,6 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
   }
 
   Widget _buildTweetCard(BuildContext context, TweetModel tweet) {
-    final currentUid = FirebaseAuth.instance.currentUser?.uid;
     // Use local state for instant UI updates
     final likesCount = _localLikesCount;
     final retweetsCount = _localRetweetsCount;
@@ -136,25 +148,17 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
     // If this doc is a retweet, display the original tweet's author/content
     final isRetweet = tweet.isRetweet;
     final headerRetweeter = isRetweet ? tweet.username : '';
-    final displayUsername = isRetweet
-        ? tweet.originalUsername
-        : tweet.username;
-    final displayHandle = isRetweet
-        ? tweet.originalHandle
-        : tweet.handle;
+    final displayUsername = isRetweet ? tweet.originalUsername : tweet.username;
+    final displayHandle = isRetweet ? tweet.originalHandle : tweet.handle;
     // Show the retweeter's avatar in the card header. The original author's
     // details (username/handle/content) are shown in the body when `isRetweet`.
     final displayProfileImage = tweet.profileImage;
-    final displayContent = isRetweet
-        ? tweet.originalContent
-        : tweet.content;
-    final displayImage = isRetweet
-        ? tweet.originalImageUrl
-        : tweet.imageUrl;
+    final displayContent = isRetweet ? tweet.originalContent : tweet.content;
+    final displayImage = isRetweet ? tweet.originalImageUrl : tweet.imageUrl;
     final displayCreatedAt = isRetweet
         ? (tweet.originalCreatedAt ?? tweet.createdAt)
         : tweet.createdAt;
-    final timeString = DateFormat('h:mm a • MMM d').format(displayCreatedAt);
+    DateFormat('h:mm a • MMM d').format(displayCreatedAt);
 
     final words = displayContent.split(' ');
     final List<InlineSpan> textSpans = words.map((word) {
@@ -164,7 +168,7 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
         return TextSpan(
           text: '$word ',
           style: TextStyle(
-            color: Colors.lightBlueAccent.shade400,
+            color: Theme.of(context).colorScheme.primary,
             fontWeight: FontWeight.w600,
           ),
         );
@@ -176,9 +180,7 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => TweetDetailScreen(tweet: tweet),
-          ),
+          MaterialPageRoute(builder: (_) => TweetDetailScreen(tweet: tweet)),
         );
       },
       child: Container(
@@ -210,7 +212,9 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                           Icon(
                             Icons.repeat,
                             size: 14,
-                            color: Colors.grey.shade600,
+                            color: Theme.of(
+                              context,
+                            ).textTheme.bodyLarge?.color?.withOpacity(0.6),
                           ),
                           const SizedBox(width: 4),
                           RichText(
@@ -219,9 +223,11 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                                 TextSpan(
                                   text: headerRetweeter,
                                   style: TextStyle(
-                                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 15,
+                                    color: Theme.of(
+                                      context,
+                                    ).textTheme.bodyLarge?.color,
+                                    fontWeight: FontWeight.w400,
+                                    fontSize: 14,
                                   ),
                                 ),
                                 TextSpan(text: ' '),
@@ -242,34 +248,34 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        child: RichText(
-                          text: TextSpan(
-                            children: [
-                              TextSpan(
-                                text: displayUsername,
-                                style: TextStyle(
-                                  color: Theme.of(context).textTheme.bodyLarge?.color,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 15,
-                                ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              displayUsername,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w400,
+                                fontSize: 17,
                               ),
-                              
-                              TextSpan(
-                                text: ' $displayHandle',
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 14,
-                                ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              displayHandle,
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 16,
                               ),
-                              TextSpan(
-                                text: ' · $timeString',
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 13,
-                                ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _formatDate(displayCreatedAt),
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 13,
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                       IconButton(
@@ -278,7 +284,7 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                         icon: Icon(
                           Icons.more_horiz,
                           size: 18,
-                          color: Colors.grey.shade600,
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
                         ),
                         onPressed: () {
                           showModalBottomSheet(
@@ -288,7 +294,10 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                                 top: Radius.circular(16),
                               ),
                             ),
-                            builder: (_) => Options(tweet: tweet),
+                            builder: (_) => Options(
+                              tweet: tweet,
+                              isBookmarkScreen: widget.isBookmarkScreen,
+                            ),
                           );
                         },
                       ),
@@ -311,7 +320,9 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                       borderRadius: BorderRadius.circular(12),
                       child: Container(
                         decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade200),
+                          border: Border.all(
+                            color: Theme.of(context).dividerColor,
+                          ),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Image.network(
@@ -323,16 +334,14 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                     ),
                   ],
                   const SizedBox(height: 8),
+
+                  // Action buttons row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                        _buildAction(
-                        Icons.chat_bubble_outline,
-                        repliesCount,
-                        () {
-                         Get.to(() => TweetDetailScreen(tweet: tweet));
-                        },
-                        ),
+                      _buildAction(Icons.chat_bubble_outline, repliesCount, () {
+                        Get.to(() => TweetDetailScreen(tweet: tweet));
+                      }),
                       _buildAction(
                         Icons.repeat,
                         retweetsCount,
@@ -348,7 +357,7 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                             );
                             return;
                           }
-                          
+
                           // Optimistic update - update UI immediately
                           setState(() {
                             _isProcessingRetweet = true;
@@ -360,13 +369,13 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                             final targetId = tweet.isRetweet
                                 ? tweet.originalTweetId
                                 : tweet.id;
-                            
+
                             // Firebase update happens in background
                             await TweetService.toggleRetweet(
                               targetId,
                               currentUid,
                             );
-                            
+
                             if (!mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
@@ -383,7 +392,9 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                             if (mounted) {
                               setState(() {
                                 _localIsRetweeted = !_localIsRetweeted;
-                                _localRetweetsCount += _localIsRetweeted ? 1 : -1;
+                                _localRetweetsCount += _localIsRetweeted
+                                    ? 1
+                                    : -1;
                               });
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(content: Text('Error: $e')),
@@ -415,7 +426,7 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
                             );
                             return;
                           }
-                          
+
                           // Optimistic update - update UI immediately
                           setState(() {
                             _isProcessingLike = true;
@@ -508,8 +519,13 @@ class _TweetCardWidgetState extends State<TweetCardWidget> {
 
 class Options extends StatelessWidget {
   final TweetModel tweet;
+  final bool isBookmarkScreen;
 
-  const Options({super.key, required this.tweet});
+  const Options({
+    super.key,
+    required this.tweet,
+    this.isBookmarkScreen = false,
+  });
 
   bool get isMyTweet {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
@@ -535,29 +551,70 @@ class Options extends StatelessWidget {
                 await Clipboard.setData(ClipboardData(text: text));
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Tweet copied to clipboard'),
-                  ),
+                  const SnackBar(content: Text('Tweet copied to clipboard',)),
                 );
               } catch (e) {
                 if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Share failed: $e')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('Share failed: $e')));
               }
             },
           ),
 
           _optionTile(
-            icon: Icons.bookmark_border,
-            label: 'Bookmark',
-            onTap: () {
+            icon: isBookmarkScreen
+                ? Icons.bookmark_remove
+                : Icons.bookmark_border,
+            label: isBookmarkScreen ? 'Remove from Bookmarks' : 'Bookmark',
+            onTap: () async {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Bookmarked'),
-                ),
-              );
+              try {
+                final currentUser = FirebaseAuth.instance.currentUser;
+                if (currentUser == null) return;
+
+                if (isBookmarkScreen) {
+                  // Remove bookmark from user's bookmarks subcollection
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(currentUser.uid)
+                      .collection('bookmarks')
+                      .doc(tweet.id)
+                      .delete();
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Removed from Bookmarks'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                } else {
+                  // Add bookmark to user's bookmarks subcollection
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(currentUser.uid)
+                      .collection('bookmarks')
+                      .doc(tweet.id)
+                      .set({
+                        'tweetId': tweet.id,
+                        'bookmarkedAt': FieldValue.serverTimestamp(),
+                      });
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Bookmarked'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Failed to update bookmark: $e'),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
             },
           ),
 
@@ -590,12 +647,17 @@ class Options extends StatelessWidget {
   }) {
     return Builder(
       builder: (context) => ListTile(
-        leading: Icon(icon, color: isDestructive ? Colors.red : Theme.of(context).iconTheme.color),
+        leading: Icon(
+          icon,
+          color: isDestructive ? Colors.red : Theme.of(context).iconTheme.color,
+        ),
         title: Text(
           label,
           style: TextStyle(
             fontWeight: FontWeight.w600,
-            color: isDestructive ? Colors.red : Theme.of(context).textTheme.bodyLarge?.color,
+            color: isDestructive
+                ? Colors.red
+                : Theme.of(context).textTheme.bodyLarge?.color,
           ),
         ),
         onTap: onTap,
@@ -610,10 +672,7 @@ class Options extends StatelessWidget {
         title: const Text('Delete Tweet?'),
         content: const Text('This can’t be undone.'),
         actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Get.back(), child: const Text('Cancel')),
           TextButton(
             onPressed: () async {
               // Close the confirmation dialog first
@@ -657,6 +716,5 @@ class Options extends StatelessWidget {
         ],
       ),
     );
-          
   }
 }

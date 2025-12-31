@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import 'package:twitter_clone_app/services/database_services.dart';
 import 'package:twitter_clone_app/controller/profile_controller.dart';
+import 'package:twitter_clone_app/Pages/user_profile_screen.dart';
+import 'package:twitter_clone_app/utils/image_resolver.dart';
 
 class FollowListPage extends StatefulWidget {
   final String userId;
@@ -27,7 +29,12 @@ class _FollowListPageState extends State<FollowListPage> {
         : DatabaseServices.followingStream(widget.userId);
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      appBar: AppBar(
+        leading: BackButton(
+          color: Theme.of(context).iconTheme.color,
+        ),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        title: Text(widget.title, style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: stream,
         builder: (context, snapshot) {
@@ -44,9 +51,13 @@ class _FollowListPageState extends State<FollowListPage> {
               final name = data['name'] ?? '';
               final username = data['username'] ?? '';
               final profileImage = data['profileImage'] ?? '';
+              final imageProvider = resolveImageProvider(profileImage);
 
               return ListTile(
-                leading: CircleAvatar(backgroundImage: profileImage.isNotEmpty ? NetworkImage(profileImage) : null, child: profileImage.isEmpty ? const Icon(Icons.person) : null),
+                leading: CircleAvatar(
+                  backgroundImage: imageProvider,
+                  child: imageProvider == null ? const Icon(Icons.person) : null,
+                ),
                 title: Text(name),
                 subtitle: Text('@$username'),
                 trailing: _currentUid == null || _currentUid == uid
@@ -83,16 +94,14 @@ class _FollowListPageState extends State<FollowListPage> {
                         },
                       ),
                 onTap: () {
-                  // Navigate to user profile page
-                  Get.toNamed('/profile', arguments: {'userId': uid},
+                  Get.to(() => UserProfileScreen(viewedUserId: uid));
+                },
               );
             },
           );
         },
-      );
-        },
-      ),  
+      ),
     );
   }
 }
- 
+

@@ -13,7 +13,8 @@ class LoginController extends GetxController {
   final passwordController = TextEditingController();
   final formKey = GlobalKey<FormState>();
 
-  final isLoading = false.obs;
+  final isloginLoading = false.obs;
+  final isGoogleLoading = false.obs;
   final isPasswordVisible = false.obs;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -29,7 +30,7 @@ class LoginController extends GetxController {
   // Validate form fields
   Future<void> login() async {
     try {
-      isLoading.value = true;
+      isloginLoading.value = true;
 
       final email = emailController.text.trim();
       final password = passwordController.text;
@@ -52,10 +53,10 @@ class LoginController extends GetxController {
           if (!Get.isRegistered<NotificationController>()) {
             final notif = NotificationController();
             Get.put<NotificationController>(notif);
-            notif.startFirestoreListener(uid);
+            notif.startListener(uid);
           } else {
             try {
-              Get.find<NotificationController>().startFirestoreListener(uid);
+              Get.find<NotificationController>().startListener(uid);
             } catch (_) {}
           }
         }
@@ -77,14 +78,14 @@ class LoginController extends GetxController {
     } catch (e) {
       Get.snackbar('Error', 'Login failed: ${e.toString()}');
     } finally {
-      isLoading.value = false;
+      isloginLoading.value = false;
     }
   }
 
   // Google Sign-In
   Future<void> loginWithGoogle() async {
     try {
-      isLoading.value = true;
+      isGoogleLoading.value = true;
 
       // Trigger Google sign-in flow using a single shared instance
       final googleUser = await _googleSignIn.signIn();
@@ -128,10 +129,10 @@ class LoginController extends GetxController {
         if (!Get.isRegistered<NotificationController>()) {
           final notif = NotificationController();
           Get.put<NotificationController>(notif);
-          notif.startFirestoreListener(uid);
+          notif.startListener(uid);
         } else {
           try {
-            Get.find<NotificationController>().startFirestoreListener(uid);
+            Get.find<NotificationController>().startListener(uid);
           } catch (_) {}
         }
       }
@@ -166,7 +167,7 @@ class LoginController extends GetxController {
     } catch (e) {
       Get.snackbar('Error', 'Google Sign-In failed: ${e.toString()}');
     } finally {
-      isLoading.value = false;
+      isGoogleLoading.value = false;
     }
   }
 

@@ -20,24 +20,50 @@ class AppPage {
   AppPage._();
 
   static final routes = [
-   GetPage(name: AppRoute.login, page: () =>  LoginScreen(),
-            binding: LoginBinding()),
-        GetPage(name: AppRoute.signup, page: () => const SignupScreen(),
-            binding: SignupBinding()),
-        GetPage(name: AppRoute.forgotPasswordScreen, page: () => ForgotPasswordScreen(),
-            binding: ResetBinding()),
-        GetPage(name: AppRoute.home, page: () => HomeScreen( ),
-            binding: HomeBinding()),
-        GetPage(name: AppRoute.profileScreen, page: () => ProfileScreen(viewedUserId: '',),
-            binding: ProfileBinding()),
-        GetPage(name: AppRoute.searchScreen, page: () => SearchScreen(),
-            binding: SearchBinding()),
-        GetPage(name: AppRoute.notificationsScreen, page: () => NotificationScreen(),
-            binding: NotificationBinding()),
-        GetPage(
-          name: AppRoute.mainNavigation,
-          page: () => MainNavigationScreen(user: null, tweets: [], replies: []),
-        ),
-
+   
+    GetPage(
+      name: AppRoute.login,
+      page: () => LoginScreen(),
+      binding: LoginBinding(),
+    ),
+    GetPage(
+      name: AppRoute.signup,
+      page: () => const SignupScreen(),
+      binding: SignupBinding(),
+    ),
+    GetPage(
+      name: AppRoute.forgotPasswordScreen,
+      page: () => ForgotPasswordScreen(),
+      binding: ResetBinding(),
+    ),
+    GetPage(
+      name: AppRoute.home,
+      page: () => HomeScreen(),
+      binding: HomeBinding(),
+    ),
+    GetPage(
+      name: AppRoute.profileScreen,
+      page: () => ProfileScreen(viewedUserId: ''),
+      binding: ProfileBinding(),
+    ),
+    GetPage(
+      name: AppRoute.searchScreen,
+      page: () => SearchScreen(),
+      binding: SearchBinding(),
+    ),
+    GetPage(
+      name: AppRoute.notificationsScreen,
+      page: () => NotificationScreen(),
+      binding: NotificationBinding(),
+    ),
+    GetPage(
+      name: AppRoute.mainNavigation,
+      page: () => MainNavigationScreen(user: null, tweets: [], replies: []),
+    ),
+    GetPage(
+      name: NotificationScreen.route,
+      page: () => const NotificationScreen(),
+      binding: NotificationBinding(), // optional
+    ),
   ];
 }

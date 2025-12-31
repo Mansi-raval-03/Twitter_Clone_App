@@ -45,7 +45,7 @@ class LoginScreen extends GetView<LoginController> {
                       height: 40,
                       child: Obx(
                         () => OutlinedButton(
-                          onPressed: controller.isLoading.value
+                          onPressed: controller.isGoogleLoading.value
                               ? null
                               : () => controller.loginWithGoogle(),
                           style: OutlinedButton.styleFrom(
@@ -58,7 +58,7 @@ class LoginScreen extends GetView<LoginController> {
                             ),
                             padding: const EdgeInsets.symmetric(vertical: 8),
                           ),
-                          child: controller.isLoading.value
+                          child: controller.isGoogleLoading.value
                               ? SizedBox(
                                   height: 20,
                                   width: 20,
@@ -71,7 +71,7 @@ class LoginScreen extends GetView<LoginController> {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     SizedBox(width: 8),
-                                    Text(
+                                      Text(
                                       'Sign in with Google',
                                       style: TextStyle(
                                         fontSize: 15,
@@ -226,7 +226,7 @@ class LoginScreen extends GetView<LoginController> {
                       height: 50,
                       child: Obx(
                         () => ElevatedButton(
-                          onPressed: controller.isLoading.value
+                          onPressed: controller.isloginLoading.value
                               ? null
                               : () {
                                   if (controller.formKey.currentState
@@ -248,7 +248,7 @@ class LoginScreen extends GetView<LoginController> {
                             ),
                             elevation: 0,
                           ),
-                          child: controller.isLoading.value
+                          child: controller.isloginLoading.value
                               ? SizedBox(
                                   height: 20,
                                   width: 20,
