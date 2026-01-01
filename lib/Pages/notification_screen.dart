@@ -80,6 +80,37 @@ class _NotificationScreenState extends State<NotificationScreen>
             color: Theme.of(context).textTheme.bodyLarge?.color,
           ),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(
+              Icons.delete_sweep,
+              color: Theme.of(context).iconTheme.color,
+            ),
+            tooltip: 'Clear all notifications',
+            onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Clear all notifications?'),
+                  content: const Text('This will delete all your notifications.'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Clear'),
+                    ),
+                  ],
+                ),
+              );
+              if (confirm == true) {
+                await _controller.deleteAllNotifications();
+              }
+            },
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -173,7 +204,8 @@ class _NotificationScreenState extends State<NotificationScreen>
 
     return InkWell(
       onTap: () async {
-        await _controller.markAsRead(n.id);
+        // Delete notification after tap (mark as read and remove from list)
+        await _controller.consumeNotification(n);
 
         // Navigate based on notification type
         if (n.type == NotificationType.message) {

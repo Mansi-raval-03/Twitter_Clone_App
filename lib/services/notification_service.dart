@@ -23,17 +23,24 @@ class NotificationService {
       // Don't send notification to yourself
       if (currentUser.uid == toUserId) return;
 
-      // Get current user info
-      final userDoc = await _firestore
+      // Get SENDER's user info (the person who triggered the notification, NOT the receiver)
+      final senderDoc = await _firestore
           .collection('users')
           .doc(currentUser.uid)
           .get();
-      final userData = userDoc.data() ?? {};
-      final username = userData['name'] ?? currentUser.displayName ?? 'User';
-      final handle =
-          userData['username'] ?? currentUser.email?.split('@')[0] ?? 'user';
-      final profileImage =
-          userData['profileImage'] ?? currentUser.photoURL ?? '';
+      final senderData = senderDoc.data() ?? {};
+      
+      // Get sender's display name from 'name' field in Firestore
+      final senderName = senderData['name'] ?? senderData['username'] ?? currentUser.displayName ?? 'User';
+      
+      // Get sender's handle from 'handle' field, removing '@' if present
+      final senderHandle = (senderData['handle'] ?? '').toString().replaceFirst('@', '');
+      final fallbackHandle = senderData['email']?.split('@')[0] ?? currentUser.email?.split('@')[0] ?? 'user';
+      final finalHandle = senderHandle.isNotEmpty ? senderHandle : fallbackHandle;
+      
+      final senderProfileImage = senderData['profileImage'] ?? senderData['profilePicture'] ?? currentUser.photoURL ?? '';
+
+      print('📤 Creating notification: type=$type, from=${currentUser.uid}, to=$toUserId, senderName=$senderName');
 
       await _firestore.collection('notifications').add({
         'to': toUserId,
@@ -46,9 +53,9 @@ class NotificationService {
         'sendPush':
             true, // Flag to trigger push notification via Cloud Function
         'meta': {
-          'username': username,
-          'handle': '@$handle',
-          'profileImage': profileImage,
+          'username': senderName,
+          'handle': '@$finalHandle',
+          'profileImage': senderProfileImage,
           'fromUserId': currentUser.uid,
           ...?meta,
         },
@@ -138,15 +145,18 @@ class NotificationService {
       final currentUser = _auth.currentUser;
       if (currentUser == null) return;
 
-      // Get current user info for title and meta
-      final userDoc = await _firestore.collection('users').doc(currentUser.uid).get();
-      final userData = userDoc.data() ?? {};
-      final username = userData['name'] ?? currentUser.displayName ?? 'User';
+      // Don't send notification to yourself
+      if (currentUser.uid == receiverId) return;
+
+      // Get SENDER's (current user) info - NOT the receiver's
+      final senderDoc = await _firestore.collection('users').doc(currentUser.uid).get();
+      final senderData = senderDoc.data() ?? {};
+      final senderUsername = senderData['name'] ?? currentUser.displayName ?? 'User';
 
       await createNotification(
         toUserId: receiverId,
         type: 'message',
-        title: '$username sent you a message',
+        title: '$senderUsername sent you a message',
         body: messageContent,
         meta: {'message': messageContent},
       );

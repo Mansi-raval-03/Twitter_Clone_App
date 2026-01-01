@@ -72,14 +72,17 @@ class MessageController extends GetxController {
           final mutedBy = Map<String, dynamic>.from(data['mutedBy'] ?? {});
           final isMuted = (mutedBy[currentUser.uid] ?? false) as bool;
 
+          // Get the OTHER user's name (not current user)
+          final otherUserName = otherData['name'] ?? otherData['username'] ?? 'User';
+          final otherUserHandle = (otherData['handle'] ?? '').toString().replaceFirst('@', '');
+          final fallbackHandle = otherData['email'] != null
+              ? otherData['email'].toString().split('@')[0]
+              : 'user';
+
           users.add({
             'id': otherId,
-            'username': otherData['username'] ?? otherData['name'] ?? 'User',
-            'handle':
-                otherData['handle'] ??
-                (otherData['email'] != null
-                    ? otherData['email'].toString().split('@')[0]
-                    : 'user'),
+            'username': otherUserName,
+            'handle': otherUserHandle.isNotEmpty ? otherUserHandle : fallbackHandle,
             'profileImage':
                 otherData['profileImage'] ?? otherData['photoURL'] ?? '',
             'lastMessage': (data['lastMessage'] ?? '') as String,
@@ -145,7 +148,7 @@ class MessageController extends GetxController {
             );
             if (otherId.isEmpty) continue;
 
-            // fetch other user's profile
+            // fetch other user's profile (the person they're chatting with)
             try {
               final otherDoc = await FirebaseFirestore.instance
                   .collection('users')
@@ -157,15 +160,17 @@ class MessageController extends GetxController {
               );
               final unread = (unreadCounts[currentUser.uid] ?? 0) as num;
 
+              // Get the OTHER user's name (not current user)
+              final otherUserName = otherData['name'] ?? otherData['username'] ?? 'User';
+              final otherUserHandle = (otherData['handle'] ?? '').toString().replaceFirst('@', '');
+              final fallbackHandle = otherData['email'] != null
+                  ? otherData['email'].toString().split('@')[0]
+                  : 'user';
+
               users.add({
                 'id': otherId,
-                'username':
-                    otherData['username'] ?? otherData['name'] ?? 'User',
-                'handle':
-                    otherData['handle'] ??
-                    (otherData['email'] != null
-                        ? otherData['email'].toString().split('@')[0]
-                        : 'user'),
+                'username': otherUserName,
+                'handle': otherUserHandle.isNotEmpty ? otherUserHandle : fallbackHandle,
                 'profileImage':
                     otherData['profileImage'] ?? otherData['photoURL'] ?? '',
                 'lastMessage': (data['lastMessage'] ?? '') as String,
@@ -239,15 +244,17 @@ class MessageController extends GetxController {
               final mutedBy = Map<String, dynamic>.from(data['mutedBy'] ?? {});
               final isMuted = (mutedBy[currentUser.uid] ?? false) as bool;
 
+              // Get the OTHER user's data (the person we're chatting with, NOT current user)
+              final otherUserName = otherData['name'] ?? otherData['username'] ?? 'User';
+              final otherUserHandle = (otherData['handle'] ?? '').toString().replaceFirst('@', '');
+              final fallbackHandle = otherData['email'] != null
+                  ? otherData['email'].toString().split('@')[0]
+                  : 'user';
+
               users.add({
                 'id': otherId,
-                'username':
-                    otherData['username'] ?? otherData['name'] ?? 'User',
-                'handle':
-                    otherData['handle'] ??
-                    (otherData['email'] != null
-                        ? otherData['email'].toString().split('@')[0]
-                        : 'user'),
+                'username': otherUserName,
+                'handle': otherUserHandle.isNotEmpty ? otherUserHandle : fallbackHandle,
                 'profileImage':
                     otherData['profileImage'] ?? otherData['photoURL'] ?? '',
                 'lastMessage': (data['lastMessage'] ?? '') as String,
@@ -322,14 +329,17 @@ class MessageController extends GetxController {
           .where((d) => d.id != currentUser.uid)
           .map((doc) {
             final data = doc.data();
+            // Get each user's actual name (not current user)
+            final userName = data['name'] ?? data['username'] ?? 'User';
+            final userHandle = (data['handle'] ?? '').toString().replaceFirst('@', '');
+            final fallbackHandle = data['email'] != null
+                ? data['email'].toString().split('@')[0]
+                : 'user';
+            
             return {
               'id': doc.id,
-              'username': data['username'] ?? data['name'] ?? 'User',
-              'handle':
-                  data['handle'] ??
-                  (data['email'] != null
-                      ? data['email'].toString().split('@')[0]
-                      : 'user'),
+              'username': userName,
+              'handle': userHandle.isNotEmpty ? userHandle : fallbackHandle,
               'profileImage': data['profileImage'] ?? data['photoURL'] ?? '',
             };
           })

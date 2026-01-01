@@ -247,11 +247,29 @@ class _MessagesScreenState extends State<MessagesScreen> {
         ? resolveImageProvider(user['profileImage'])
         : null;
 
+    // Highlight conversations with unread messages
+    final backgroundColor = showDot
+        ? (theme.brightness == Brightness.light
+              ? theme.colorScheme.secondaryContainer.withOpacity(0.3)
+              : theme.colorScheme.secondary.withOpacity(0.1))
+        : theme.scaffoldBackgroundColor;
+
     return InkWell(
       onTap: () => msgcontroller.navigateToChat(user),
       onLongPress: () => _showChatOptions(context, user),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          border: showDot
+              ? Border(
+                  left: BorderSide(
+                    color: theme.colorScheme.secondary,
+                    width: 3,
+                  ),
+                )
+              : null,
+        ),
         child: Row(
           children: [
             GestureDetector(

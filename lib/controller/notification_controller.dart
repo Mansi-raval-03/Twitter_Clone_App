@@ -74,10 +74,12 @@ class NotificationController extends GetxController {
 
                     // show an in-app notification for new unread items
                     if (notif.read == false) {
-                      // For messages, show username as title
+                      // For messages, show sender's username as title
                       String displayTitle = notif.title;
-                      if (notif.type == NotificationType.message && notif.meta['username'] != null) {
-                        displayTitle = notif.meta['username'];
+                      if (notif.type == NotificationType.message) {
+                        // Use sender's username from meta (the person who sent the message)
+                        displayTitle = notif.meta['username'] ?? 'Someone';
+                        debugPrint('📩 Message notification: from="${notif.meta['username']}" fromUserId="${notif.meta['fromUserId']}"');
                       }
                       
                       Get.snackbar(
@@ -166,6 +168,18 @@ class NotificationController extends GetxController {
   Future<void> deleteNotification(String id) async {
     await _db.collection('notifications').doc(id).delete();
     notifications.removeWhere((n) => n.id == id);
+  }
+
+  Future<void> deleteAllNotifications() async {
+    final batch = _db.batch();
+
+    for (final n in notifications) {
+      batch.delete(_db.collection('notifications').doc(n.id));
+    }
+
+    await batch.commit();
+    notifications.clear();
+    debugPrint('🗑️ All notifications deleted');
   }
 
   Future<void> consumeNotification(AppNotification n) async {
